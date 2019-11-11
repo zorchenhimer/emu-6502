@@ -99,6 +99,40 @@ var testData_A = []basicTest{
 	//        regState{y:0x03},
 	//        regState{OP_LDA_IY, 0x00, 0x03, 0x8003, 0x00}},
 
+    // LDX
+	basicTest{
+		"OP_LDX_IM",
+		[]byte{OP_LDX_IM, 0x04},
+		regState{},
+		regState{0x00, 0x04, 0x00, 0x8002, 0x00}},
+	basicTest{
+		"OP_LDX_AB",
+		[]byte{OP_LDX_AB, 0x00, 0x80},
+		regState{},
+		regState{0x00, OP_LDX_AB, 0x00, 0x8003, 0x00}},
+	basicTest{
+		"OP_LDX_ZP",
+		[]byte{OP_LDX_ZP, 0x04},
+		regState{},
+		regState{0x00, 0x04, 0x00, 0x8002, 0x00}},
+
+    // LDY
+	basicTest{
+		"OP_LDY_IM",
+		[]byte{OP_LDY_IM, 0x04},
+		regState{},
+		regState{0x00, 0x00, 0x04, 0x8002, 0x00}},
+	basicTest{
+		"OP_LDY_AB",
+		[]byte{OP_LDY_AB, 0x00, 0x80},
+		regState{},
+		regState{0x00, 0x00, OP_LDY_AB, 0x8003, 0x00}},
+	basicTest{
+		"OP_LDY_ZP",
+		[]byte{OP_LDY_ZP, 0x04},
+		regState{},
+		regState{0x00, 0x00, 0x04, 0x8002, 0x00}},
+
 	basicTest{
 		"OP_NOP",
 		[]byte{OP_NOP},
@@ -164,7 +198,7 @@ func TestImmediate(t *testing.T) {
 			ticksran -= 1 // remove the 0xFF "test done" tick
 
 			core.checkRegisters(t, bt.name, bt.regExpected)
-			t.Logf("ticks ran: %d", ticksran)
+			//t.Logf("ticks ran: %d", ticksran)
 			// TODO: phlags
 		})
 	}
