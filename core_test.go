@@ -5,39 +5,58 @@ import (
 	"testing"
 )
 
-type regState struct {
-	a      uint8
-	x      uint8
-	y      uint8
-	pc     uint16
-	phlags uint8
+// Tests that check memory values in addition to register flags
+var memoryBased = []memTest{
+	// STA
+	memTest{
+		"OP_STA_AB",
+		[]byte{OP_STA_AB, 0x00, 0x03},
+		memVal{0x0300, OP_STA_AB},
+		regState{a: OP_STA_AB},
+		regState{OP_STA_AB, 0x00, 0x00, 0x8003, 0x00}},
+
+	memTest{
+		"OP_STA_ZP",
+		[]byte{OP_STA_ZP, 0x03},
+		memVal{0x0003, OP_STA_ZP},
+		regState{a: OP_STA_ZP},
+		regState{OP_STA_ZP, 0x00, 0x00, 0x8002, 0x00}},
+	memTest{
+		"OP_STA_ZX",
+		[]byte{OP_STA_ZX, 0x03},
+		memVal{0x0006, OP_STA_ZX},
+		regState{a: OP_STA_ZX, x: 03},
+		regState{OP_STA_ZX, 0x03, 0x00, 0x8002, 0x00}},
+
+	memTest{
+		"OP_STA_AX",
+		[]byte{OP_STA_AX, 0x03, 0x03},
+		memVal{0x0306, OP_STA_AX},
+		regState{a: OP_STA_AX, x: 03},
+		regState{OP_STA_AX, 0x03, 0x00, 0x8003, 0x00}},
+	memTest{
+		"OP_STA_AY",
+		[]byte{OP_STA_AY, 0x03, 0x03},
+		memVal{0x0306, OP_STA_AY},
+		regState{a: OP_STA_AY, y: 03},
+		regState{OP_STA_AY, 0x00, 0x03, 0x8003, 0x00}},
+
+	memTest{
+		"OP_STA_IX",
+		// pointer is at $0001 + 1 (x) = $0002
+		// should be a pointer val of $0302
+		[]byte{OP_STA_IX, 0x01, 0x00},
+		memVal{0x0302, OP_STA_IX},
+		regState{a: OP_STA_IX, x: 01},
+		regState{OP_STA_IX, 0x01, 0x00, 0x8003, 0x00}},
+	memTest{
+		"OP_STA_AY",
+		// pointer is $0002 = $0302 + 1 (y) = $0303
+		[]byte{OP_STA_IY, 0x02, 0x00},
+		memVal{0x0303, OP_STA_IY},
+		regState{a: OP_STA_IY, y: 01},
+		regState{OP_STA_IY, 0x00, 0x01, 0x8003, 0x00}},
 }
-
-// Figure out how this'll work, lol
-type ExpectedResults interface {
-	GetExpected() regState
-}
-
-//type InitialState interface {
-//    GetInitialState() regState
-//}
-
-// single test case.  single OP code, and register state
-type basicTest struct {
-	name string
-	rom  []byte // should be no more than three bytes
-	//ticks int // ticks to perform
-	regInitial  regState
-	regExpected regState
-}
-
-func (bt basicTest) GetExpected() regState {
-	return bt.regExpected
-}
-
-//func (bt basicTest) GetInitialState() {
-//	return bt.regInitial
-//}
 
 var testData_A = []basicTest{
 
@@ -86,6 +105,40 @@ var testData_A = []basicTest{
 		regState{},
 		regState{pc: 0x8001}},
 }
+
+type regState struct {
+	a      uint8
+	x      uint8
+	y      uint8
+	pc     uint16
+	phlags uint8
+}
+
+// Figure out how this'll work, lol
+type ExpectedResults interface {
+	GetExpected() regState
+}
+
+//type InitialState interface {
+//    GetInitialState() regState
+//}
+
+// single test case.  single OP code, and register state
+type basicTest struct {
+	name string
+	rom  []byte // should be no more than three bytes
+	//ticks int // ticks to perform
+	regInitial  regState
+	regExpected regState
+}
+
+func (bt basicTest) GetExpected() regState {
+	return bt.regExpected
+}
+
+//func (bt basicTest) GetInitialState() {
+//	return bt.regInitial
+//}
 
 func TestImmediate(t *testing.T) {
 	core := newTestCore(t)
@@ -140,23 +193,6 @@ func (mt memTest) GetExpected() regState {
 //func (mt memTest) GetInitialState() {
 //	return mt.regInitial
 //}
-
-// Tests that check memory values in addition to register flags
-var memoryBased = []memTest{
-	// STA
-	memTest{
-		"OP_STA_AB",
-		[]byte{OP_STA_AB, 0x00, 0x03},
-		memVal{0x0300, OP_STA_AB},
-		regState{a: OP_STA_AB},
-		regState{OP_STA_AB, 0x00, 0x00, 0x8003, 0x00}},
-	memTest{
-		"OP_STA_ZP",
-		[]byte{OP_STA_ZP, 0x03},
-		memVal{0x0003, OP_STA_ZP},
-		regState{a: OP_STA_ZP},
-		regState{OP_STA_ZP, 0x00, 0x00, 0x8003, 0x00}},
-}
 
 func TestMemoryBased(t *testing.T) {
 	core := newTestCore(t)

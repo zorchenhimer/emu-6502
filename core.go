@@ -170,16 +170,32 @@ func (c *Core) tick() error {
 
 	case OP_STA_AB:
 		addr := c.ReadWord(c.PC + 1)
-		c.memory[addr] = c.A
+		c.WriteByte(addr, c.A)
 		c.PC += 3
 	case OP_STA_ZP:
 		addr := uint16(c.ReadByte(c.PC + 1))
-		c.memory[addr] = c.A
+		c.WriteByte(addr, c.A)
 		c.PC += 2
 	case OP_STA_ZX:
-		addr8 := c.ReadByte(c.PC+1) + c.X
-		c.memory[addr8] = c.A
+		addr := uint16(c.ReadByte(c.PC+1) + c.X)
+		c.WriteByte(addr, c.A)
 		c.PC += 2
+	case OP_STA_AX:
+		addr := c.ReadWord(c.PC+1) + uint16(c.X)
+		c.WriteByte(addr, c.A)
+		c.PC += 3
+	case OP_STA_AY:
+		addr := c.ReadWord(c.PC+1) + uint16(c.Y)
+		c.WriteByte(addr, c.A)
+		c.PC += 3
+	case OP_STA_IX:
+		addr := c.ReadWord(c.ReadWord(c.PC+1) + uint16(c.X))
+		c.WriteByte(addr, c.A)
+		c.PC += 3
+	case OP_STA_IY:
+		addr := c.ReadWord(c.ReadWord(c.PC+1)) + uint16(c.Y)
+		c.WriteByte(addr, c.A)
+		c.PC += 3
 
 	default:
 		if opcode == 0xFF && c.testing {
@@ -263,4 +279,10 @@ func padWithVectors(rom []byte, nmi, reset, irq uint16) []byte {
 	rom[addr+5] = byte(irq >> 8)
 
 	return rom
+}
+
+func (c *Core) dbg(format string, args ...interface{}) {
+	if c.t != nil {
+		c.t.Logf(format, args...)
+	}
 }
