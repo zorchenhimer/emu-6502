@@ -162,26 +162,26 @@ func (c *Core) tick() error {
 		c.A = c.ReadByte(uint16(c.ReadByte(c.PC + 1)))
 		c.PC += 2
 
-        // LDX
+		// LDX
 	case OP_LDX_IM:
 		c.X = c.ReadByte(c.PC + 1)
 		c.PC += 2
-    case OP_LDX_AB:
-        c.X = c.ReadByte(c.ReadWord(c.PC + 1))
-        c.PC += 3
+	case OP_LDX_AB:
+		c.X = c.ReadByte(c.ReadWord(c.PC + 1))
+		c.PC += 3
 
-        // LDY
+		// LDY
 	case OP_LDY_IM:
 		c.Y = c.ReadByte(c.PC + 1)
 		c.PC += 2
-    case OP_LDY_AB:
-        c.Y = c.ReadByte(c.ReadWord(c.PC + 1))
-        c.PC += 3
+	case OP_LDY_AB:
+		c.Y = c.ReadByte(c.ReadWord(c.PC + 1))
+		c.PC += 3
 
 	case OP_NOP:
 		c.PC += 1
 
-        // STA
+		// STA
 	case OP_STA_AB:
 		addr := c.ReadWord(c.PC + 1)
 		c.WriteByte(addr, c.A)

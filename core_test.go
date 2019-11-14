@@ -99,7 +99,7 @@ var testData_A = []basicTest{
 	//        regState{y:0x03},
 	//        regState{OP_LDA_IY, 0x00, 0x03, 0x8003, 0x00}},
 
-    // LDX
+	// LDX
 	basicTest{
 		"OP_LDX_IM",
 		[]byte{OP_LDX_IM, 0x04},
@@ -116,7 +116,7 @@ var testData_A = []basicTest{
 		regState{},
 		regState{0x00, 0x04, 0x00, 0x8002, 0x00}},
 
-    // LDY
+	// LDY
 	basicTest{
 		"OP_LDY_IM",
 		[]byte{OP_LDY_IM, 0x04},
