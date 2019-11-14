@@ -169,6 +169,9 @@ func (c *Core) tick() error {
 	case OP_LDX_AB:
 		c.X = c.ReadByte(c.ReadWord(c.PC + 1))
 		c.PC += 3
+	case OP_LDX_ZP:
+		c.X = c.ReadByte(uint16(c.ReadByte(c.PC + 1)))
+		c.PC += 2
 
 		// LDY
 	case OP_LDY_IM:
@@ -177,6 +180,9 @@ func (c *Core) tick() error {
 	case OP_LDY_AB:
 		c.Y = c.ReadByte(c.ReadWord(c.PC + 1))
 		c.PC += 3
+	case OP_LDY_ZP:
+		c.Y = c.ReadByte(uint16(c.ReadByte(c.PC + 1)))
+		c.PC += 2
 
 	case OP_NOP:
 		c.PC += 1
