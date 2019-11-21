@@ -138,6 +138,22 @@ func (c *Core) Run() error {
 func (c *Core) tick() error {
 	opcode := c.ReadByte(c.PC)
 
+	if opcode == 0xFF && c.testing {
+		c.testDone = true
+		return nil // 0xFF means end of test
+	}
+
+	fn, ok := opcodes[opcode]
+	if !ok {
+		return fmt.Errorf("OP Code not implemented: [$%04X] $%02X", c.PC, opcode)
+	}
+
+	return fn(c)
+}
+
+func (c *Core) oldtick() error {
+	opcode := c.ReadByte(c.PC)
+
 	switch opcode {
 
 	case OP_JMP_AB:
