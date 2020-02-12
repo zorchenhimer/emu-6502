@@ -111,16 +111,16 @@ var opcodes map[byte]opcodeExec = map[byte]opcodeExec{
 	OP_LDA_ZP: exec_LDA_ZP,
 	OP_LDA_ZX: exec_LDA_ZX,
 
-	//OP_LDX_AB: exec_LDX_AB,
-	//OP_LDX_AY: exec_LDX_AY,
-	//OP_LDX_IM: exec_LDX_IM,
-	//OP_LDX_ZP: exec_LDX_ZP,
+	OP_LDX_AB: exec_LDX_AB,
+	OP_LDX_AY: exec_LDX_AY,
+	OP_LDX_IM: exec_LDX_IM,
+	OP_LDX_ZP: exec_LDX_ZP,
 	//OP_LDX_ZY: exec_LDX_ZY,
 
-	//OP_LDY_AB: exec_LDY_AB,
-	//OP_LDY_AX: exec_LDY_AX,
-	//OP_LDY_IM: exec_LDY_IM,
-	//OP_LDY_ZP: exec_LDY_ZP,
+	OP_LDY_AB: exec_LDY_AB,
+	OP_LDY_AX: exec_LDY_AX,
+	OP_LDY_IM: exec_LDY_IM,
+	OP_LDY_ZP: exec_LDY_ZP,
 	//OP_LDY_ZX: exec_LDY_ZX,
 
 	//OP_LSR_AB: exec_LSR_AB,
@@ -129,7 +129,7 @@ var opcodes map[byte]opcodeExec = map[byte]opcodeExec{
 	//OP_LSR_ZP: exec_LSR_ZP,
 	//OP_LSR_ZX: exec_LSR_ZX,
 
-	//OP_NOP: exec_NOP,
+	OP_NOP: exec_NOP,
 
 	//OP_ORA_AB: exec_OPA_AB,
 	//OP_ORA_AX: exec_ORA_AX,
