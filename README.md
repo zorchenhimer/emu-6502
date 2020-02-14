@@ -1,3 +1,9 @@
+# Important Note
+
+Almost none of the following is implemented yet.  This README was mainly a
+roadmap of sorts.  Behaviours outlined here will almost certainly be changed in
+some way or outright removed, especially non-standard 6502 behaviour.
+
 ## A simple 6502 emulator
 
 The purpose of this project is to have a working 6502 in software.
@@ -67,7 +73,7 @@ Open file by writing full path to a page between $4000 and $5FFF.
 Once opened, fill work RAM with file's contents.  If more than 8k, allow bank
 swapping?
 Write/flush file contents on register write.
-Close/drop flie contents/changes on register write.
+Close/drop file contents/changes on register write.
 Open/reload file from disk on register write.
 
 Implement a file system API to list files and directories, create and delete
