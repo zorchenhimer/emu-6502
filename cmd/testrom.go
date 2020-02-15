@@ -35,8 +35,8 @@ func main() {
 		fmt.Println(err)
 		core.DumpRegisters()
 		fmt.Printf("Ticks: %d\n", core.Ticks())
-		core.DumpPage(uint8(core.PC >> 8))
-		core.DumpMemoryToFile("dump.txt")
+		core.DumpPage(0x01)
+		//core.DumpMemoryToFile("dump.txt")
 		return
 	}
 }

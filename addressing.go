@@ -93,7 +93,7 @@ var ADDR_IndirectY = AddressModeMeta{
 var ADDR_ZeroPage = AddressModeMeta{
 		Name: "ZeroPage",
 		Asm: func(value uint16) string {
-			return fmt.Sprintf("($%04X)", value)
+			return fmt.Sprintf("$%02X", uint8(value))
 		},
 		Address: func(c *Core) (uint16, uint8) {
 			return uint16(c.ReadByte(c.PC + 1)), 2

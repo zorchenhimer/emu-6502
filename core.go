@@ -251,7 +251,7 @@ func (c *Core) tick() error {
 		l := instr.InstrLength(c)
 		ops := []string{}
 		for i := uint8(0); i < l; i++ {
-			ops = append(ops, fmt.Sprintf("%X", c.ReadByte(oppc+uint16(i))))
+			ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
 		}
 
 		value := uint16(0)
@@ -264,13 +264,14 @@ func (c *Core) tick() error {
 			value = c.ReadWord(oppc+1)
 		}
 
-		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-15s %s",
+		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-15s %s %s",
 			c.ticks,
 			oppc,
 			strings.Join(ops, " "),
 			instr.Name(),
 			instr.AddressMeta().Asm(value),
 			c.registerString(),
+			c.stackString(),
 		)
 		c.historyIdx += 1
 		if c.historyIdx >= HistoryLength {
@@ -279,6 +280,20 @@ func (c *Core) tick() error {
 	}
 
 	return nil
+}
+
+func (c *Core) stackString() string {
+	st := []string{}
+	length := 0xFF - c.SP
+	if length == 0 {
+		return ""
+	}
+
+	for i := length; i > 0; i--{
+		st = append(st, fmt.Sprintf("$%02X", c.ReadByte(uint16(c.SP + i) | 0x0100)))
+	}
+
+	return strings.Join(st, " ")
 }
 
 func (c *Core) DumpMemoryRange(start, end uint16) {
@@ -368,13 +383,16 @@ func flagsToString(ph uint8) string {
 }
 
 func (c *Core) registerString() string {
-	return fmt.Sprintf("A: %02X (%-3d) X: %02X (%-3d) Y: %02X (%-3d) %s",
+	return fmt.Sprintf("A: %02X (%-3d) X: %02X (%-3d) Y: %02X (%-3d) SP: %02X (%-3d) [%02X] %s",
 		c.A,
 		c.A,
 		c.X,
 		c.X,
 		c.Y,
 		c.Y,
+		c.SP,
+		c.SP,
+		c.Phlags,
 		flagsToString(c.Phlags),
 	)
 }

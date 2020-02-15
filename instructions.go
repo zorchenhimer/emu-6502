@@ -97,6 +97,12 @@ var instructionList = map[byte]Instruction{
 		Flag: FLAG_OVERFLOW,
 		Set: true},
 
+	OP_BRK: Jump{
+		OpCode:         OP_BRK,
+		Instruction:    "BRK",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_BRK},
+
 	OP_CLC: StandardInstruction{
 		OpCode:         OP_CLC,
 		Instruction:    "CLC",
@@ -804,10 +810,17 @@ func instr_JSR(c *Core, address uint16) uint16 {
 }
 
 func instr_RTS(c *Core, address uint16) uint16 {
-	return c.pullAddress()
+	return c.pullAddress() + 1
 }
 
 func instr_RTI(c *Core, address uint16) uint16 {
 	c.Phlags = c.pullByte()
 	return c.pullAddress()
+}
+
+func instr_BRK(c *Core, address uint16) uint16 {
+	c.pushAddress(c.PC + 2)
+	c.pushByte(c.Phlags | FLAG_BREAK)
+	c.Phlags = c.Phlags | FLAG_INTERRUPT
+	return c.ReadWord(0xFFFE)
 }
