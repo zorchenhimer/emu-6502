@@ -4,7 +4,6 @@ import (
 	//"fmt"
 )
 
-//type AddressingModeFunc func(c *Core) (uint16, uint8)
 type ExecFunc func(c *Core, address uint16)
 
 type Instruction interface {
@@ -15,6 +14,48 @@ type Instruction interface {
 }
 
 var instructionList = map[byte]Instruction{
+
+	OP_ADC_AB: StandardInstruction{
+		OpCode:         OP_ADC_AB,
+		Instruction:    "ADC",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_ADC},
+	OP_ADC_AX: StandardInstruction{
+		OpCode:         OP_ADC_AX,
+		Instruction:    "ADC",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_ADC},
+	OP_ADC_AY: StandardInstruction{
+		OpCode:         OP_ADC_AY,
+		Instruction:    "ADC",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_ADC},
+	OP_ADC_IM: StandardInstruction{
+		OpCode:         OP_ADC_IM,
+		Instruction:    "ADC",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_ADC},
+	OP_ADC_IX: StandardInstruction{
+		OpCode:         OP_ADC_IX,
+		Instruction:    "ADC",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_ADC},
+	OP_ADC_IY: StandardInstruction{
+		OpCode:         OP_ADC_IY,
+		Instruction:    "ADC",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_ADC},
+	OP_ADC_ZP: StandardInstruction{
+		OpCode:         OP_ADC_ZP,
+		Instruction:    "ADC",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_ADC},
+	OP_ADC_ZX: StandardInstruction{
+		OpCode:         OP_ADC_ZX,
+		Instruction:    "ADC",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_ADC},
+
 	OP_BCC: Branch{
 		OpCode: OP_BCC,
 		Instruction: "BCC",
@@ -56,11 +97,89 @@ var instructionList = map[byte]Instruction{
 		Flag: FLAG_OVERFLOW,
 		Set: true},
 
+	OP_CLC: StandardInstruction{
+		OpCode:         OP_CLC,
+		Instruction:    "CLC",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_CLC},
 	OP_CLD: StandardInstruction{
 		OpCode:         OP_CLD,
 		Instruction:    "CLD",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_CLD},
+
+	OP_CMP_AB: StandardInstruction{
+		OpCode:         OP_CMP_AB,
+		Instruction:    "CMP",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_CMP},
+	OP_CMP_AX: StandardInstruction{
+		OpCode:         OP_CMP_AX,
+		Instruction:    "CMP",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_CMP},
+	OP_CMP_AY: StandardInstruction{
+		OpCode:         OP_CMP_AY,
+		Instruction:    "CMP",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_CMP},
+	OP_CMP_IM: StandardInstruction{
+		OpCode:         OP_CMP_IM,
+		Instruction:    "CMP",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_CMP},
+	OP_CMP_IX: StandardInstruction{
+		OpCode:         OP_CMP_IX,
+		Instruction:    "CMP",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_CMP},
+	OP_CMP_IY: StandardInstruction{
+		OpCode:         OP_CMP_IY,
+		Instruction:    "CMP",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_CMP},
+	OP_CMP_ZP: StandardInstruction{
+		OpCode:         OP_CMP_ZP,
+		Instruction:    "CMP",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_CMP},
+	OP_CMP_ZX: StandardInstruction{
+		OpCode:         OP_CMP_ZX,
+		Instruction:    "CMP",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_CMP},
+
+	OP_CPX_AB: StandardInstruction{
+		OpCode:         OP_CPX_AB,
+		Instruction:    "CPX",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_CPX},
+	OP_CPX_IM: StandardInstruction{
+		OpCode:         OP_CPX_IM,
+		Instruction:    "CPX",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_CPX},
+	OP_CPX_ZP: StandardInstruction{
+		OpCode:         OP_CPX_ZP,
+		Instruction:    "CPX",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_CPX},
+
+	OP_CPY_AB: StandardInstruction{
+		OpCode:         OP_CPY_AB,
+		Instruction:    "CPY",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_CPY},
+	OP_CPY_IM: StandardInstruction{
+		OpCode:         OP_CPY_IM,
+		Instruction:    "CPY",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_CPY},
+	OP_CPY_ZP: StandardInstruction{
+		OpCode:         OP_CPY_ZP,
+		Instruction:    "CPY",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_CPY},
 
 	OP_DEC_AB: ReadWriteModify{
 		OpCode:         OP_DEC_AB,
@@ -93,6 +212,48 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "DEY",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_DEY},
+
+	OP_EOR_AB: StandardInstruction{
+		OpCode:         OP_EOR_AB,
+		Instruction:    "EOR",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_EOR},
+	OP_EOR_AX: StandardInstruction{
+		OpCode:         OP_EOR_AX,
+		Instruction:    "EOR",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_EOR},
+	OP_EOR_AY: StandardInstruction{
+		OpCode:         OP_EOR_AY,
+		Instruction:    "EOR",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_EOR},
+	OP_EOR_IM: StandardInstruction{
+		OpCode:         OP_EOR_IM,
+		Instruction:    "EOR",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_EOR},
+	OP_EOR_IX: StandardInstruction{
+		OpCode:         OP_EOR_IX,
+		Instruction:    "EOR",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_EOR},
+	OP_EOR_IY: StandardInstruction{
+		OpCode:         OP_EOR_IY,
+		Instruction:    "EOR",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_EOR},
+	OP_EOR_ZP: StandardInstruction{
+		OpCode:         OP_EOR_ZP,
+		Instruction:    "EOR",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_EOR},
+	OP_EOR_ZX: StandardInstruction{
+		OpCode:         OP_EOR_ZX,
+		Instruction:    "EOR",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_EOR},
+
 
 	OP_JMP_AB: Jump{
 		OpCode: OP_JMP_AB,
@@ -251,6 +412,27 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_Implied,
 		Exec:           instr_NOP},
 
+	OP_PHA: StandardInstruction{
+		OpCode:         OP_PHA,
+		Instruction:    "PHA",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_PHA},
+	OP_PHP: StandardInstruction{
+		OpCode:         OP_PHP,
+		Instruction:    "PHP",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_PHP},
+	OP_PLA: StandardInstruction{
+		OpCode:         OP_PLA,
+		Instruction:    "PLA",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_PLA},
+	OP_PLP: StandardInstruction{
+		OpCode:         OP_PLP,
+		Instruction:    "PLP",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_PLP},
+
 	OP_STA_AB: StandardInstruction{
 		OpCode:         OP_STA_AB,
 		Instruction:    "STA",
@@ -344,6 +526,11 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "TXS",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_TXS},
+	OP_TYA: StandardInstruction{
+		OpCode:         OP_TYA,
+		Instruction:    "TYA",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_TYA},
 }
 
 type StandardInstruction struct {
@@ -372,8 +559,37 @@ func (i StandardInstruction) Name() string {
 	return i.Instruction
 }
 
+func instr_CLC(c *Core, address uint16) {
+	c.Phlags = c.Phlags & (FLAG_CARRY ^ 0xFF)
+}
+
 func instr_CLD(c *Core, address uint16) {
 	c.Phlags = c.Phlags & (FLAG_DECIMAL ^ 0xFF)
+}
+
+func (c *Core) compare(a, b uint8) {
+	overflow := c.Phlags & FLAG_OVERFLOW
+	val := c.twosCompSubtract(a, b)
+	if val == 0 {
+		c.Phlags = c.Phlags | FLAG_CARRY
+	}
+	c.Phlags = c.Phlags | overflow
+}
+
+func instr_CMP(c *Core, address uint16) {
+	c.compare(c.A, c.ReadByte(address))
+}
+
+func instr_CPX(c *Core, address uint16) {
+	c.compare(c.X, c.ReadByte(address))
+}
+
+func instr_CPY(c *Core, address uint16) {
+	c.compare(c.Y, c.ReadByte(address))
+}
+
+func instr_ADC(c *Core, address uint16) {
+	c.A = c.twosCompAdd(c.A, c.ReadByte(address))
 }
 
 func instr_DEX(c *Core, address uint16) {
@@ -384,6 +600,11 @@ func instr_DEX(c *Core, address uint16) {
 func instr_DEY(c *Core, address uint16) {
 	c.Y -= 1
 	c.setZeroNegative(c.Y)
+}
+
+func instr_EOR(c *Core, address uint16) {
+	c.A = c.A ^ c.ReadByte(address)
+	c.setZeroNegative(c.A)
 }
 
 func instr_INX(c *Core, address uint16) {
@@ -413,6 +634,27 @@ func instr_LDY(c *Core, address uint16) {
 
 func instr_NOP(c *Core, address uint16) {
 	return
+}
+
+func instr_PHA(c *Core, address uint16) {
+	c.pushByte(c.A)
+}
+
+func instr_PHP(c *Core, address uint16) {
+	c.pushByte(c.Phlags | FLAG_BREAK)
+}
+
+func instr_PLA(c *Core, address uint16) {
+	c.A = c.pullByte()
+	c.setZeroNegative(c.A)
+}
+
+func instr_PLP(c *Core, address uint16) {
+	c.Phlags = c.pullByte() & (0xCF) // ignore bits 4 and 5
+}
+
+func instr_SBC(c *Core, address uint16) {
+	c.A = c.twosCompSubtract(c.A, c.ReadByte(address))
 }
 
 func instr_STA(c *Core, address uint16) {
@@ -449,6 +691,11 @@ func instr_TXA(c *Core, address uint16) {
 
 func instr_TXS(c *Core, address uint16) {
 	c.SP = c.X
+}
+
+func instr_TYA(c *Core, address uint16) {
+	c.A = c.Y
+	c.setZeroNegative(c.A)
 }
 
 type ReadWriteModify struct {
@@ -507,24 +754,14 @@ func (b Branch) Name() string {
 func (b Branch) Execute(c *Core) {
 	var v uint8 = 0
 	if b.Set {
-		v = 1
+		v = b.Flag
 	}
 
-	//prevPc := c.PC
 	if c.Phlags & b.Flag == v {
 		c.PC = c.addrRelative(c.ReadByte(c.PC + 1))
 	} else {
 		c.PC += 2
 	}
-
-	//fmt.Printf("%s: %s set: %t [%04X] -> [%04X]\n",
-	//	b.Instruction,
-	//	flagToString(Flag),
-	//	b.Set,
-	//	prevPc,
-	//	c.PC,
-	//)
-	//c.DumpRegisters()
 }
 
 func (b Branch) InstrLength(c *Core) uint8 {
@@ -573,23 +810,4 @@ func instr_RTS(c *Core, address uint16) uint16 {
 func instr_RTI(c *Core, address uint16) uint16 {
 	c.Phlags = c.pullByte()
 	return c.pullAddress()
-}
-
-func (c *Core) pushAddress(addr uint16) {
-	c.pushByte(uint8(addr >> 8))
-	c.pushByte(uint8(addr & 0xFF))
-}
-
-func (c *Core) pullAddress() uint16 {
-	return uint16(c.pullByte()) | uint16(c.pullByte()) << 8
-}
-
-func (c *Core) pushByte(val uint8) {
-	c.WriteByte(uint16(c.SP) | 0x0100, val)
-	c.SP -= 1
-}
-
-func (c *Core) pullByte() uint8 {
-	c.SP += 1
-	return c.ReadByte(uint16(c.SP) | 0x0100)
 }

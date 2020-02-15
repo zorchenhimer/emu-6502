@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+const HistoryLength int = 50
+
 const (
 	VECTOR_NMI   uint16 = 0xFFFA
 	VECTOR_RESET uint16 = 0xFFFC
@@ -43,6 +45,9 @@ type Core struct {
 
 	// VERY verbose output
 	Debug bool
+
+	history [HistoryLength]string
+	historyIdx int
 }
 
 func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
@@ -65,6 +70,7 @@ func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
 
 		fullRW:     true,
 		checkStuck: true,
+		history:    [HistoryLength]string{},
 	}
 
 	c.PC = c.ReadWord(VECTOR_RESET)
@@ -88,6 +94,8 @@ func NewCore(rom []byte, wram bool, instrLimit uint64) (*Core, error) {
 		rom:    rom,
 
 		InstructionLimit: instrLimit,
+
+		history:    [HistoryLength]string{},
 	}
 
 	if wram {
@@ -190,7 +198,19 @@ func (c *Core) Run() error {
 	return nil
 }
 
+func (c *Core) dumpHistory() {
+	for i := c.historyIdx; i < HistoryLength; i++ {
+		fmt.Println(c.history[i])
+	}
+
+	for i := 0; i < c.historyIdx; i++ {
+		fmt.Println(c.history[i])
+	}
+
+}
+
 func (c *Core) tick() error {
+	//c.PC += 1
 	if c.checkStuck {
 		if c.PC == c.lastPC {
 			c.lastSame++
@@ -199,7 +219,8 @@ func (c *Core) tick() error {
 			c.lastPC = c.PC
 		}
 
-		if c.lastSame > 5 {
+		if c.lastSame > 0 {
+			c.dumpHistory()
 			return fmt.Errorf("Stuck")
 		}
 	}
@@ -217,6 +238,7 @@ func (c *Core) tick() error {
 	//fn, ok := opcodes[opcode]
 	instr, ok := instructionList[opcode]
 	if !ok || instr == nil {
+		c.dumpHistory()
 		return fmt.Errorf("OP Code not implemented: [$%04X] $%02X", c.PC, opcode)
 	}
 
@@ -242,13 +264,18 @@ func (c *Core) tick() error {
 			value = c.ReadWord(oppc+1)
 		}
 
-		fmt.Printf("[%06d] $%04X: %-9s %s %s\n",
+		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-15s %s",
 			c.ticks,
 			oppc,
 			strings.Join(ops, " "),
 			instr.Name(),
 			instr.AddressMeta().Asm(value),
+			c.registerString(),
 		)
+		c.historyIdx += 1
+		if c.historyIdx >= HistoryLength {
+			c.historyIdx = 0
+		}
 	}
 
 	return nil
@@ -281,6 +308,8 @@ const (
 	FLAG_INTERRUPT uint8 = 0x04
 	FLAG_DECIMAL   uint8 = 0x08
 
+	FLAG_BREAK    uint8 = 0x30
+	FLAG_IRQ      uint8 = 0x20
 	FLAG_OVERFLOW uint8 = 0x40
 	FLAG_NEGATIVE uint8 = 0x80
 )
@@ -311,44 +340,47 @@ func flagsToString(ph uint8) string {
 	sv := "-"
 	sn := "-"
 
-	if ph&FLAG_CARRY == 1 {
+	if ph&FLAG_CARRY != 0 {
 		sc = "C"
 	}
 
-	if ph&FLAG_ZERO == 1 {
+	if ph&FLAG_ZERO != 0 {
 		sz = "Z"
 	}
 
-	if ph&FLAG_INTERRUPT == 1 {
+	if ph&FLAG_INTERRUPT != 0 {
 		si = "I"
 	}
 
-	if ph&FLAG_DECIMAL == 1 {
+	if ph&FLAG_DECIMAL != 0 {
 		sd = "D"
 	}
 
-	if ph&FLAG_OVERFLOW == 1 {
+	if ph&FLAG_OVERFLOW != 0 {
 		sv = "V"
 	}
 
-	if ph&FLAG_NEGATIVE == 1 {
+	if ph&FLAG_NEGATIVE != 0 {
 		sn = "N"
 	}
 
 	return fmt.Sprintf("%s%s--%s%s%s%s", sn, sv, sd, si, sz, sc)
 }
 
-func (c *Core) DumpRegisters() {
-	fmt.Printf("A: %02X (%d) X: %02X (%d) Y: %02X (%d) PC: %04X Phlags: %s\n",
+func (c *Core) registerString() string {
+	return fmt.Sprintf("A: %02X (%-3d) X: %02X (%-3d) Y: %02X (%-3d) %s",
 		c.A,
 		c.A,
 		c.X,
 		c.X,
 		c.Y,
 		c.Y,
-		c.PC,
 		flagsToString(c.Phlags),
 	)
+}
+
+func (c *Core) DumpRegisters() {
+	fmt.Println(c.registerString())
 }
 
 func (c *Core) DumpPage(page uint8) {
@@ -445,6 +477,7 @@ func (c *Core) dbg(format string, args ...interface{}) {
 
 // Set zero and negative flags based on the given value
 func (c *Core) setZeroNegative(value uint8) {
+	//prev := c.Phlags
 	// zero
 	if value == 0 {
 		c.Phlags = c.Phlags | FLAG_ZERO
@@ -452,12 +485,15 @@ func (c *Core) setZeroNegative(value uint8) {
 		c.Phlags = c.Phlags & (FLAG_ZERO ^ 0xFF)
 	}
 
+
 	// negative
 	if value&0x80 != 0 {
 		c.Phlags = c.Phlags | FLAG_NEGATIVE
 	} else {
 		c.Phlags = c.Phlags & (FLAG_NEGATIVE ^ 0xFF)
 	}
+	//fmt.Printf("[Ph] %02X -> %02X\n", prev, c.Phlags)
+	//fmt.Printf("%s -> %s\n", prev, flagsToString(c.Phlags))
 }
 
 // addrRelative works differently than all other addressing functions.
@@ -483,3 +519,48 @@ func TwosCompInv(value uint8) (uint8, bool) {
 	return value, false
 }
 
+func (c *Core) twosCompAdd(a, b uint8) uint8 {
+	val := a + b
+
+	if b < a {
+		// set carry
+		c.Phlags = c.Phlags | FLAG_CARRY
+	} else {
+		// reset carry
+		c.Phlags = c.Phlags & (FLAG_CARRY ^ 0xFF)
+	}
+
+	if (a & 0x80) != (val & 0x80) {
+		c.Phlags = c.Phlags | FLAG_OVERFLOW
+	} else {
+		c.Phlags = c.Phlags & (FLAG_OVERFLOW ^ 0xFF)
+	}
+
+	c.setZeroNegative(val)
+	return val
+}
+
+func (c *Core) twosCompSubtract(a, b uint8) uint8 {
+	//b = (b ^ 0xFF) + 1
+	b = (b - 1) ^ 0xFF
+	return c.twosCompAdd(a, b)
+}
+
+func (c *Core) pushAddress(addr uint16) {
+	c.pushByte(uint8(addr >> 8))
+	c.pushByte(uint8(addr & 0xFF))
+}
+
+func (c *Core) pullAddress() uint16 {
+	return uint16(c.pullByte()) | uint16(c.pullByte()) << 8
+}
+
+func (c *Core) pushByte(val uint8) {
+	c.WriteByte(uint16(c.SP) | 0x0100, val)
+	c.SP -= 1
+}
+
+func (c *Core) pullByte() uint8 {
+	c.SP += 1
+	return c.ReadByte(uint16(c.SP) | 0x0100)
+}
