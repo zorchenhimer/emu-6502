@@ -142,7 +142,7 @@ type opcodeExec func(core *Core)
 //
 //	//OP_PHA: exec_PHA,
 //	//OP_PHP: exec_PHP,
-//	//OP_PIA: exec_PIA,
+//	//OP_PLA: exec_PIA,
 //	//OP_PLP: exec_PLP,
 //
 //	//OP_ROL_AB: exec_ROL_AB,
@@ -271,7 +271,7 @@ const (
 	OP_ADC_IX byte = 0x61 //(Indirect,X)
 	OP_ADC_ZP byte = 0x65 //Zero Page
 	OP_ROR_ZP byte = 0x66 //Zero Page
-	OP_PIA    byte = 0x68 //
+	OP_PLA    byte = 0x68 //
 	OP_ADC_IM byte = 0x69 //Immediate
 	OP_ROR_AC byte = 0x6A //Accumulator
 	OP_JMP_ID byte = 0x6C //Indirect
@@ -330,12 +330,12 @@ const (
 	OP_CPY_ZP byte = 0xC4 //Zero Page
 	OP_CMP_ZP byte = 0xC5 //Zero Page
 	OP_DEC_ZP byte = 0xC6 //Zero Page
+	OP_INY    byte = 0xC8 //
 	OP_CMP_IM byte = 0xC9 //Immediate
 	OP_DEX    byte = 0xCA //
 	OP_CPY_AB byte = 0xCC //Absolute
 	OP_CMP_AB byte = 0xCD //Absolute
 	OP_DEC_AB byte = 0xCE //Absolute
-	OP_INY    byte = 0xC5 //
 	OP_CMP_IX byte = 0xC1 //(Indirect,X)
 	OP_BNE    byte = 0xD0 //
 	OP_CMP_ZX byte = 0xD5 //Zero Page,X
@@ -347,9 +347,9 @@ const (
 	OP_CMP_IY byte = 0xD1 //(Indirect),Y
 	OP_CPX_IM byte = 0xE0 //Immediate
 	OP_CPX_ZP byte = 0xE4 //Zero Page
-	OP_INX    byte = 0xE5 //
 	OP_SBC_ZP byte = 0xE5 //Zero Page
 	OP_INC_ZP byte = 0xE6 //Zero Page
+	OP_INX    byte = 0xE8 //
 	OP_SBC_IM byte = 0xE9 //Immediate
 	OP_NOP    byte = 0xEA //
 	OP_CPX_AB byte = 0xEC //Absolute
