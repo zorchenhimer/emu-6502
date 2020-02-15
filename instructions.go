@@ -113,6 +113,16 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "CLD",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_CLD},
+	OP_CLI: StandardInstruction{
+		OpCode:         OP_CLI,
+		Instruction:    "CLI",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_CLI},
+	OP_CLV: StandardInstruction{
+		OpCode:         OP_CLV,
+		Instruction:    "CLV",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_CLV},
 
 	OP_CMP_AB: StandardInstruction{
 		OpCode:         OP_CMP_AB,
@@ -418,6 +428,47 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_Implied,
 		Exec:           instr_NOP},
 
+	OP_ORA_AB: StandardInstruction{
+		OpCode:         OP_ORA_AB,
+		Instruction:    "ORA",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_ORA},
+	OP_ORA_AX: StandardInstruction{
+		OpCode:         OP_ORA_AX,
+		Instruction:    "ORA",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_ORA},
+	OP_ORA_AY: StandardInstruction{
+		OpCode:         OP_ORA_AY,
+		Instruction:    "ORA",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_ORA},
+	OP_ORA_IM: StandardInstruction{
+		OpCode:         OP_ORA_IM,
+		Instruction:    "ORA",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_ORA},
+	OP_ORA_IX: StandardInstruction{
+		OpCode:         OP_ORA_IX,
+		Instruction:    "ORA",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_ORA},
+	OP_ORA_IY: StandardInstruction{
+		OpCode:         OP_ORA_IY,
+		Instruction:    "ORA",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_ORA},
+	OP_ORA_ZP: StandardInstruction{
+		OpCode:         OP_ORA_ZP,
+		Instruction:    "ORA",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_ORA},
+	OP_ORA_ZX: StandardInstruction{
+		OpCode:         OP_ORA_ZX,
+		Instruction:    "ORA",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_ORA},
+
 	OP_PHA: StandardInstruction{
 		OpCode:         OP_PHA,
 		Instruction:    "PHA",
@@ -438,6 +489,22 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "PLP",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_PLP},
+
+	OP_SEC: StandardInstruction{
+		OpCode:         OP_SEC,
+		Instruction:    "SEC",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_SEC},
+	OP_SED: StandardInstruction{
+		OpCode:         OP_SED,
+		Instruction:    "SED",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_SED},
+	OP_SEI: StandardInstruction{
+		OpCode:         OP_SEI,
+		Instruction:    "SEI",
+		AddressMode: ADDR_Implied,
+		Exec:           instr_SEI},
 
 	OP_STA_AB: StandardInstruction{
 		OpCode:         OP_STA_AB,
@@ -566,20 +633,31 @@ func (i StandardInstruction) Name() string {
 }
 
 func instr_CLC(c *Core, address uint16) {
-	c.Phlags = c.Phlags & (FLAG_CARRY ^ 0xFF)
+	c.Phlags &^= FLAG_CARRY
 }
 
 func instr_CLD(c *Core, address uint16) {
-	c.Phlags = c.Phlags & (FLAG_DECIMAL ^ 0xFF)
+	c.Phlags &^= FLAG_DECIMAL
+}
+
+func instr_CLI(c *Core, address uint16) {
+	c.Phlags &^= FLAG_INTERRUPT
+}
+
+func instr_CLV(c *Core, address uint16) {
+	c.Phlags &^= FLAG_OVERFLOW
 }
 
 func (c *Core) compare(a, b uint8) {
 	overflow := c.Phlags & FLAG_OVERFLOW
+	c.Phlags &^= FLAG_CARRY
+
 	val := c.twosCompSubtract(a, b)
+	c.Phlags = (c.Phlags &^ FLAG_OVERFLOW) | overflow
+
 	if val == 0 {
-		c.Phlags = c.Phlags | FLAG_CARRY
+		c.Phlags = c.Phlags | FLAG_CARRY | FLAG_ZERO
 	}
-	c.Phlags = c.Phlags | overflow
 }
 
 func instr_CMP(c *Core, address uint16) {
@@ -642,6 +720,10 @@ func instr_NOP(c *Core, address uint16) {
 	return
 }
 
+func instr_ORA(c *Core, address uint16) {
+	c.A |= c.ReadByte(address)
+}
+
 func instr_PHA(c *Core, address uint16) {
 	c.pushByte(c.A)
 }
@@ -661,6 +743,18 @@ func instr_PLP(c *Core, address uint16) {
 
 func instr_SBC(c *Core, address uint16) {
 	c.A = c.twosCompSubtract(c.A, c.ReadByte(address))
+}
+
+func instr_SEC(c *Core, address uint16) {
+	c.Phlags |= FLAG_CARRY
+}
+
+func instr_SED(c *Core, address uint16) {
+	c.Phlags |= FLAG_DECIMAL
+}
+
+func instr_SEI(c *Core, address uint16) {
+	c.Phlags |= FLAG_INTERRUPT
 }
 
 func instr_STA(c *Core, address uint16) {
@@ -763,8 +857,8 @@ func (b Branch) Execute(c *Core) {
 		v = b.Flag
 	}
 
-	if c.Phlags & b.Flag == v {
-		c.PC = c.addrRelative(c.ReadByte(c.PC + 1))
+	if (c.Phlags & b.Flag) == v {
+		c.PC = c.addrRelative(c.PC, c.ReadByte(c.PC + 1))
 	} else {
 		c.PC += 2
 	}

@@ -5,9 +5,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
-const HistoryLength int = 50
+const HistoryLength int = 100
 
 const (
 	VECTOR_NMI   uint16 = 0xFFFA
@@ -165,6 +166,8 @@ func (c *Core) WriteInt(addr uint16, value uint8) {
 }
 
 func (c *Core) Run() error {
+	start := time.Now()
+	defer func() {fmt.Printf("time: %s\n", time.Now().Sub(start))}()
 
 	limit := false
 	if c.InstructionLimit > 0 {
@@ -199,6 +202,10 @@ func (c *Core) Run() error {
 }
 
 func (c *Core) dumpHistory() {
+	if !c.Debug {
+		return
+	}
+
 	for i := c.historyIdx; i < HistoryLength; i++ {
 		fmt.Println(c.history[i])
 	}
@@ -254,22 +261,12 @@ func (c *Core) tick() error {
 			ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
 		}
 
-		value := uint16(0)
-		_, ok := instr.(Branch)
-		if ok {
-			value = c.addrRelative(c.ReadByte(oppc+1))
-		} else if l == 2 {
-			value = uint16(c.ReadByte(oppc+1))
-		} else if l == 3 {
-			value = c.ReadWord(oppc+1)
-		}
-
-		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-15s %s %s",
+		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-17s %s %s",
 			c.ticks,
 			oppc,
 			strings.Join(ops, " "),
 			instr.Name(),
-			instr.AddressMeta().Asm(value),
+			instr.AddressMeta().Asm(c, oppc),	// oppc == OP code PC
 			c.registerString(),
 			c.stackString(),
 		)
@@ -517,8 +514,8 @@ func (c *Core) setZeroNegative(value uint8) {
 // addrRelative works differently than all other addressing functions.
 // It takes the value for offset, and uses the PC of the instruction
 // as the start point.  Call this before incrementing PC.
-func (c *Core) addrRelative(offset uint8) uint16 {
-	addr := c.PC + 2
+func (c *Core) addrRelative(pc uint16, offset uint8) uint16 {
+	addr := pc + 2
 	val, negative := TwosCompInv(offset)
 
 	if negative {
@@ -538,7 +535,11 @@ func TwosCompInv(value uint8) (uint8, bool) {
 }
 
 func (c *Core) twosCompAdd(a, b uint8) uint8 {
-	val := a + b
+	carry := uint8(0)
+	if (c.Phlags & FLAG_CARRY) == FLAG_CARRY {
+		carry = 1
+	}
+	val := a + b + carry
 
 	if b < a {
 		// set carry
