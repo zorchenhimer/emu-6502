@@ -3,6 +3,7 @@ package emu
 import (
 	"fmt"
 	"os"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,7 @@ type Core struct {
 
 	// VERY verbose output
 	Debug bool
+	DebugFile io.Writer
 
 	history [HistoryLength]string
 	historyIdx int
@@ -166,6 +168,10 @@ func (c *Core) WriteInt(addr uint16, value uint8) {
 }
 
 func (c *Core) Run() error {
+	if c.DebugFile != nil {
+		c.Debug = true
+	}
+
 	start := time.Now()
 	defer func() {fmt.Printf("time: %s\n", time.Now().Sub(start))}()
 
@@ -207,10 +213,16 @@ func (c *Core) dumpHistory() {
 	}
 
 	for i := c.historyIdx; i < HistoryLength; i++ {
+		if c.history[i] == "" {
+			return
+		}
 		fmt.Println(c.history[i])
 	}
 
 	for i := 0; i < c.historyIdx; i++ {
+		if c.history[i] == "" {
+			return
+		}
 		fmt.Println(c.history[i])
 	}
 
@@ -261,7 +273,7 @@ func (c *Core) tick() error {
 			ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
 		}
 
-		c.history[c.historyIdx] = fmt.Sprintf("[%06d] $%04X: %-9s %s %-17s %s %s",
+		dbgLine := fmt.Sprintf("[%06d] $%04X: %-9s %s %-17s %s %s",
 			c.ticks,
 			oppc,
 			strings.Join(ops, " "),
@@ -270,9 +282,15 @@ func (c *Core) tick() error {
 			c.registerString(),
 			c.stackString(),
 		)
+
+		c.history[c.historyIdx] = dbgLine
 		c.historyIdx += 1
 		if c.historyIdx >= HistoryLength {
 			c.historyIdx = 0
+		}
+
+		if c.DebugFile != nil {
+			fmt.Fprintln(c.DebugFile, dbgLine)
 		}
 	}
 

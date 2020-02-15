@@ -26,8 +26,17 @@ func main() {
 		return
 	}
 
+	file, err := os.Create("debug.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	core.DebugFile = file
 	// vectors have traps
 	core.PC = 0x8000
+	//core.PC = 0x0400
 	core.Debug = true
 
 	err = core.Run()
@@ -35,8 +44,9 @@ func main() {
 		fmt.Println(err)
 		core.DumpRegisters()
 		fmt.Printf("Ticks: %d\n", core.Ticks())
-		core.DumpPage(0x01)
-		//core.DumpMemoryToFile("dump.txt")
+		//core.DumpPage(0x01)
+		//core.DumpPage(0x02)
+		core.DumpMemoryToFile("memory.txt")
 		return
 	}
 }
