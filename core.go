@@ -559,7 +559,7 @@ func (c *Core) twosCompAdd(a, b uint8) uint8 {
 	}
 	val := a + b + carry
 
-	if b < a {
+	if (val < a) || ((val == a) && (carry != 0)) {
 		// set carry
 		c.Phlags = c.Phlags | FLAG_CARRY
 	} else {
