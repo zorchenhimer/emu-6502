@@ -297,6 +297,29 @@ func (c *Core) tick() error {
 	return nil
 }
 
+func (c *Core) Instructions() []string {
+	ret := []string{}
+	for _, instr := range instructionList {
+		var op byte
+		switch instr.(type) {
+		case StandardInstruction:
+			si := instr.(StandardInstruction)
+			op = si.OpCode
+		case Branch:
+			br := instr.(Branch)
+			op = br.OpCode
+		case Jump:
+			j := instr.(Jump)
+			op = j.OpCode
+		case ReadModifyWrite:
+			rmw := instr.(ReadModifyWrite)
+			op = rmw.OpCode
+		}
+		ret = append(ret, fmt.Sprintf("$%02X %s %s", op, instr.Name(), instr.AddressMeta().Name))
+	}
+	return ret
+}
+
 func (c *Core) stackString() string {
 	st := []string{}
 	length := 0xFF - c.SP
@@ -509,7 +532,7 @@ func (c *Core) dbg(format string, args ...interface{}) {
 }
 
 // Set zero and negative flags based on the given value
-func (c *Core) setZeroNegative(value uint8) {
+func (c *Core) setZeroNegative(value uint8) uint8 {
 	//prev := c.Phlags
 	// zero
 	if value == 0 {
@@ -527,6 +550,8 @@ func (c *Core) setZeroNegative(value uint8) {
 	}
 	//fmt.Printf("[Ph] %02X -> %02X\n", prev, c.Phlags)
 	//fmt.Printf("%s -> %s\n", prev, flagsToString(c.Phlags))
+
+	return value
 }
 
 // addrRelative works differently than all other addressing functions.

@@ -56,6 +56,79 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_ZeroPageX,
 		Exec:           instr_ADC},
 
+	OP_AND_AB: StandardInstruction{
+		OpCode:         OP_AND_AB,
+		Instruction:    "AND",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_AND},
+	OP_AND_AX: StandardInstruction{
+		OpCode:         OP_AND_AX,
+		Instruction:    "AND",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_AND},
+	OP_AND_AY: StandardInstruction{
+		OpCode:         OP_AND_AY,
+		Instruction:    "AND",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_AND},
+	OP_AND_IM: StandardInstruction{
+		OpCode:         OP_AND_IM,
+		Instruction:    "AND",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_AND},
+	OP_AND_IX: StandardInstruction{
+		OpCode:         OP_AND_IX,
+		Instruction:    "AND",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_AND},
+	OP_AND_IY: StandardInstruction{
+		OpCode:         OP_AND_IY,
+		Instruction:    "AND",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_AND},
+	OP_AND_ZP: StandardInstruction{
+		OpCode:         OP_AND_ZP,
+		Instruction:    "AND",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_AND},
+	OP_AND_ZX: StandardInstruction{
+		OpCode:         OP_AND_ZX,
+		Instruction:    "AND",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_AND},
+
+	OP_ASL_AB: ReadModifyWrite{
+		OpCode:         OP_ASL_AB,
+		Instruction:    "ASL",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_ASL},
+	OP_ASL_AX: ReadModifyWrite{
+		OpCode:         OP_ASL_AX,
+		Instruction:    "ASL",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_ASL},
+	OP_ASL_ZP: ReadModifyWrite{
+		OpCode:         OP_ASL_ZP,
+		Instruction:    "ASL",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_ASL},
+	OP_ASL_ZX: ReadModifyWrite{
+		OpCode:         OP_ASL_ZX,
+		Instruction:    "ASL",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_ASL},
+
+	OP_BIT_AB: StandardInstruction{
+		OpCode:         OP_BIT_AB,
+		Instruction:    "BIT",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_BIT},
+	OP_BIT_ZP: StandardInstruction{
+		OpCode:         OP_BIT_ZP,
+		Instruction:    "BIT",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_BIT},
+
 	OP_BCC: Branch{
 		OpCode: OP_BCC,
 		Instruction: "BCC",
@@ -197,22 +270,22 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_ZeroPage,
 		Exec:           instr_CPY},
 
-	OP_DEC_AB: ReadWriteModify{
+	OP_DEC_AB: ReadModifyWrite{
 		OpCode:         OP_DEC_AB,
 		Instruction:    "DEC",
 		AddressMode: ADDR_Absolute,
 		Exec:           instr_DEC},
-	OP_DEC_AX: ReadWriteModify{
+	OP_DEC_AX: ReadModifyWrite{
 		OpCode:         OP_DEC_AX,
 		Instruction:    "DEC",
 		AddressMode: ADDR_AbsoluteX,
 		Exec:           instr_DEC},
-	OP_DEC_ZP: ReadWriteModify{
+	OP_DEC_ZP: ReadModifyWrite{
 		OpCode:         OP_DEC_ZP,
 		Instruction:    "DEC",
 		AddressMode: ADDR_ZeroPage,
 		Exec:           instr_DEC},
-	OP_DEC_ZX: ReadWriteModify{
+	OP_DEC_ZX: ReadModifyWrite{
 		OpCode:         OP_DEC_ZX,
 		Instruction:    "DEC",
 		AddressMode: ADDR_ZeroPageX,
@@ -270,6 +343,26 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_ZeroPageX,
 		Exec:           instr_EOR},
 
+	OP_LSR_AB: ReadModifyWrite{
+		OpCode:         OP_LSR_AB,
+		Instruction:    "LSR",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_LSR},
+	OP_LSR_AX: ReadModifyWrite{
+		OpCode:         OP_LSR_AX,
+		Instruction:    "LSR",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_LSR},
+	OP_LSR_ZP: ReadModifyWrite{
+		OpCode:         OP_LSR_ZP,
+		Instruction:    "LSR",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_LSR},
+	OP_LSR_ZX: ReadModifyWrite{
+		OpCode:         OP_LSR_ZX,
+		Instruction:    "LSR",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_LSR},
 
 	OP_JMP_AB: Jump{
 		OpCode: OP_JMP_AB,
@@ -286,16 +379,6 @@ var instructionList = map[byte]Instruction{
 		Instruction: "JSR",
 		AddressMode: ADDR_Absolute,
 		Exec: instr_JSR},
-	OP_RTS: Jump{
-		OpCode: OP_RTS,
-		Instruction: "RTS",
-		AddressMode: ADDR_Implied,
-		Exec: instr_RTS},
-	OP_RTI: Jump{
-		OpCode: OP_RTI,
-		Instruction: "RTI",
-		AddressMode: ADDR_Implied,
-		Exec: instr_RTI},
 
 	OP_LDA_AB: StandardInstruction{
 		OpCode:         OP_LDA_AB,
@@ -390,22 +473,22 @@ var instructionList = map[byte]Instruction{
 		AddressMode: ADDR_ZeroPageX,
 		Exec:           instr_LDY},
 
-	OP_INC_AB: ReadWriteModify{
+	OP_INC_AB: ReadModifyWrite{
 		OpCode:         OP_INC_AB,
 		Instruction:    "INC",
 		AddressMode: ADDR_Absolute,
 		Exec:           instr_INC},
-	OP_INC_AX: ReadWriteModify{
+	OP_INC_AX: ReadModifyWrite{
 		OpCode:         OP_INC_AX,
 		Instruction:    "INC",
 		AddressMode: ADDR_AbsoluteX,
 		Exec:           instr_INC},
-	OP_INC_ZP: ReadWriteModify{
+	OP_INC_ZP: ReadModifyWrite{
 		OpCode:         OP_INC_ZP,
 		Instruction:    "INC",
 		AddressMode: ADDR_ZeroPage,
 		Exec:           instr_INC},
-	OP_INC_ZX: ReadWriteModify{
+	OP_INC_ZX: ReadModifyWrite{
 		OpCode:         OP_INC_ZX,
 		Instruction:    "INC",
 		AddressMode: ADDR_ZeroPageX,
@@ -489,6 +572,100 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "PLP",
 		AddressMode: ADDR_Implied,
 		Exec:           instr_PLP},
+
+	OP_ROL_AB: ReadModifyWrite{
+		OpCode:         OP_ROL_AB,
+		Instruction:    "ROL",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_ROL},
+	OP_ROL_AX: ReadModifyWrite{
+		OpCode:         OP_ROL_AX,
+		Instruction:    "ROL",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_ROL},
+	OP_ROL_ZP: ReadModifyWrite{
+		OpCode:         OP_ROL_ZP,
+		Instruction:    "ROL",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_ROL},
+	OP_ROL_ZX: ReadModifyWrite{
+		OpCode:         OP_ROL_ZX,
+		Instruction:    "ROL",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_ROL},
+
+	OP_ROR_AB: ReadModifyWrite{
+		OpCode:         OP_ROR_AB,
+		Instruction:    "ROR",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_ROR},
+	OP_ROR_AX: ReadModifyWrite{
+		OpCode:         OP_ROR_AX,
+		Instruction:    "ROR",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_ROR},
+	OP_ROR_ZP: ReadModifyWrite{
+		OpCode:         OP_ROR_ZP,
+		Instruction:    "ROR",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_ROR},
+	OP_ROR_ZX: ReadModifyWrite{
+		OpCode:         OP_ROR_ZX,
+		Instruction:    "ROR",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_ROR},
+
+	OP_RTI: Jump{
+		OpCode: OP_RTI,
+		Instruction: "RTI",
+		AddressMode: ADDR_Implied,
+		Exec: instr_RTI},
+	OP_RTS: Jump{
+		OpCode: OP_RTS,
+		Instruction: "RTS",
+		AddressMode: ADDR_Implied,
+		Exec: instr_RTS},
+
+	OP_SBC_AB: StandardInstruction{
+		OpCode:         OP_SBC_AB,
+		Instruction:    "SBC",
+		AddressMode: ADDR_Absolute,
+		Exec:           instr_SBC},
+	OP_SBC_AX: StandardInstruction{
+		OpCode:         OP_SBC_AX,
+		Instruction:    "SBC",
+		AddressMode: ADDR_AbsoluteX,
+		Exec:           instr_SBC},
+	OP_SBC_AY: StandardInstruction{
+		OpCode:         OP_SBC_AY,
+		Instruction:    "SBC",
+		AddressMode: ADDR_AbsoluteY,
+		Exec:           instr_SBC},
+	OP_SBC_IM: StandardInstruction{
+		OpCode:         OP_SBC_IM,
+		Instruction:    "SBC",
+		AddressMode: ADDR_Immediate,
+		Exec:           instr_SBC},
+	OP_SBC_IX: StandardInstruction{
+		OpCode:         OP_SBC_IX,
+		Instruction:    "SBC",
+		AddressMode: ADDR_IndirectX,
+		Exec:           instr_SBC},
+	OP_SBC_IY: StandardInstruction{
+		OpCode:         OP_SBC_IY,
+		Instruction:    "SBC",
+		AddressMode: ADDR_IndirectY,
+		Exec:           instr_SBC},
+	OP_SBC_ZP: StandardInstruction{
+		OpCode:         OP_SBC_ZP,
+		Instruction:    "SBC",
+		AddressMode: ADDR_ZeroPage,
+		Exec:           instr_SBC},
+	OP_SBC_ZX: StandardInstruction{
+		OpCode:         OP_SBC_ZX,
+		Instruction:    "SBC",
+		AddressMode: ADDR_ZeroPageX,
+		Exec:           instr_SBC},
 
 	OP_SEC: StandardInstruction{
 		OpCode:         OP_SEC,
@@ -672,6 +849,17 @@ func instr_ADC(c *Core, address uint16) {
 	c.A = c.twosCompAdd(c.A, c.ReadByte(address))
 }
 
+func instr_AND(c *Core, address uint16) {
+	c.A &= c.ReadByte(address)
+	c.setZeroNegative(c.A)
+}
+
+func instr_BIT(c *Core, address uint16) {
+	val := c.A & c.ReadByte(address)
+	c.setZeroNegative(val)
+	c.Phlags = (c.Phlags &^ FLAG_OVERFLOW) | (val & FLAG_OVERFLOW)
+}
+
 func instr_DEX(c *Core, address uint16) {
 	c.X -= 1
 	c.setZeroNegative(c.X)
@@ -794,29 +982,29 @@ func instr_TYA(c *Core, address uint16) {
 	c.setZeroNegative(c.A)
 }
 
-type ReadWriteModify struct {
+type ReadModifyWrite struct {
 	OpCode         byte
 	Instruction    string
 	AddressMode AddressModeMeta
 	Exec           func(c *Core, value uint8) uint8
 }
 
-func (rwm ReadWriteModify) AddressMeta() AddressModeMeta {
-	return rwm.AddressMode
+func (rmw ReadModifyWrite) AddressMeta() AddressModeMeta {
+	return rmw.AddressMode
 }
 
-func (rwm ReadWriteModify) Execute(c *Core) {
-	address, size := rwm.AddressMode.Address(c)
-	c.WriteByte(address, rwm.Exec(c, c.ReadByte(address)))
+func (rmw ReadModifyWrite) Execute(c *Core) {
+	address, size := rmw.AddressMode.Address(c)
+	c.WriteByte(address, rmw.Exec(c, c.ReadByte(address)))
 	c.PC += uint16(size)
 }
 
-func (rwm ReadWriteModify) Name() string {
-	return rwm.Instruction
+func (rmw ReadModifyWrite) Name() string {
+	return rmw.Instruction
 }
 
-func (rwm ReadWriteModify) InstrLength(c *Core) uint8 {
-	_, size := rwm.AddressMode.Address(c)
+func (rmw ReadModifyWrite) InstrLength(c *Core) uint8 {
+	_, size := rmw.AddressMode.Address(c)
 	return size
 }
 
@@ -830,6 +1018,28 @@ func instr_INC(c *Core, value uint8) uint8 {
 	value += 1
 	c.setZeroNegative(value)
 	return value
+}
+
+func instr_LSR(c *Core, value uint8) uint8 {
+	c.Phlags = (c.Phlags &^ FLAG_CARRY) | (value & FLAG_CARRY)
+	return c.setZeroNegative(value >> 1)
+}
+
+func instr_ASL(c *Core, value uint8) uint8 {
+	c.Phlags = (c.Phlags &^ FLAG_CARRY) | ((value & 0x80) >> 7)
+	return c.setZeroNegative(value << 1)
+}
+
+func instr_ROL(c *Core, value uint8) uint8 {
+	carry := c.Phlags & FLAG_CARRY
+	c.Phlags = (c.Phlags &^ FLAG_CARRY) | ((value & 0x80) >> 7)
+	return c.setZeroNegative((value << 1) | carry)
+}
+
+func instr_ROR(c *Core, value uint8) uint8 {
+	carry := (c.Phlags & FLAG_CARRY) << 7
+	c.Phlags = (c.Phlags &^ FLAG_CARRY) | (value & FLAG_CARRY)
+	return c.setZeroNegative((value >> 1) | carry)
 }
 
 type Branch struct {

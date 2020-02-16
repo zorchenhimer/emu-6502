@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
+	//"strings"
 
 	"github.com/zorchenhimer/emu-6502"
 )
@@ -25,6 +27,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
+	instructions(core)
 
 	file, err := os.Create("debug.txt")
 	if err != nil {
@@ -49,4 +53,26 @@ func main() {
 		core.DumpMemoryToFile("memory.txt")
 		return
 	}
+}
+
+func instructions(core *emu.Core) {
+	instr := core.Instructions()
+	sort.Strings(instr)
+	count := len(instr)
+
+	//err = ioutil.WriteFile("instructions.txt", []byte(strings.Join(instr, "\n")), 0777)
+	file, err := os.Create("instructions.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	for _, i := range instr {
+		fmt.Fprintln(file, i)
+	}
+
+	percent := (float32(count) / 151) * 100
+
+	fmt.Fprintf(file, "Total implemented: %d/151: %0.2f%%\nUnimplemented: %d\n", count, percent, 151 - count)
 }
