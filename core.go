@@ -2,9 +2,9 @@ package emu
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
-	"io"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +20,7 @@ const (
 
 const (
 	NTSC time.Duration = time.Nanosecond * 16666667 // close enough, lol
-	PAL time.Duration = time.Millisecond * 20
+	PAL  time.Duration = time.Millisecond * 20
 )
 
 type Core struct {
@@ -48,16 +48,16 @@ type Core struct {
 
 	fullRW bool
 
-	lastPC   uint16
-	lastSame int
+	lastPC       uint16
+	lastSame     int
 	lastReadAddr uint16
-	checkStuck bool
+	checkStuck   bool
 
 	// VERY verbose output
-	Debug bool
+	Debug     bool
 	DebugFile io.Writer
 
-	history [HistoryLength]string
+	history    [HistoryLength]string
 	historyIdx int
 
 	nmiTicker *time.Ticker
@@ -108,7 +108,7 @@ func NewCore(rom []byte, wram bool, instrLimit uint64, nmiFrequency time.Duratio
 
 		InstructionLimit: instrLimit,
 
-		history:    [HistoryLength]string{},
+		history:   [HistoryLength]string{},
 		nmiTicker: time.NewTicker(nmiFrequency),
 	}
 
@@ -197,7 +197,7 @@ func (c *Core) Run() error {
 	}
 
 	start := time.Now()
-	defer func() {fmt.Printf("time: %s\n", time.Now().Sub(start))}()
+	defer func() { fmt.Printf("time: %s\n", time.Now().Sub(start)) }()
 
 	limit := false
 	if c.InstructionLimit > 0 {
@@ -207,7 +207,7 @@ func (c *Core) Run() error {
 
 	done := false
 	var err error
-	for !(done || stop){
+	for !(done || stop) {
 		err = c.tick()
 		if err != nil {
 			return err
@@ -283,12 +283,11 @@ func (c *Core) tick() error {
 		// instruction in this implementation.  That isn't the case for
 		// real hardware.
 		select {
-		case <- c.nmiTicker.C:
+		case <-c.nmiTicker.C:
 			interruptList[VECTOR_NMI].Execute(c)
 		default:
 		}
 	}
-
 
 	opcode := c.ReadByte(c.PC)
 	//if c.fullRW {
@@ -324,7 +323,7 @@ func (c *Core) tick() error {
 			oppc,
 			strings.Join(ops, " "),
 			instr.Name(),
-			instr.AddressMeta().Asm(c, oppc),	// oppc == OP code PC
+			instr.AddressMeta().Asm(c, oppc), // oppc == OP code PC
 			c.Registers(),
 			c.stackString(),
 		)
@@ -373,8 +372,8 @@ func (c *Core) stackString() string {
 		return ""
 	}
 
-	for i := length; i > 0; i--{
-		st = append(st, fmt.Sprintf("$%02X", c.ReadByte(uint16(c.SP + i) | 0x0100)))
+	for i := length; i > 0; i-- {
+		st = append(st, fmt.Sprintf("$%02X", c.ReadByte(uint16(c.SP+i)|0x0100)))
 	}
 
 	return strings.Join(st, " ")
@@ -525,7 +524,6 @@ func (c *Core) setZeroNegative(value uint8) uint8 {
 		c.Phlags = c.Phlags & (FLAG_ZERO ^ 0xFF)
 	}
 
-
 	// negative
 	if value&0x80 != 0 {
 		c.Phlags = c.Phlags | FLAG_NEGATIVE
@@ -591,11 +589,11 @@ func (c *Core) pushAddress(addr uint16) {
 }
 
 func (c *Core) pullAddress() uint16 {
-	return uint16(c.pullByte()) | uint16(c.pullByte()) << 8
+	return uint16(c.pullByte()) | uint16(c.pullByte())<<8
 }
 
 func (c *Core) pushByte(val uint8) {
-	c.WriteByte(uint16(c.SP) | 0x0100, val)
+	c.WriteByte(uint16(c.SP)|0x0100, val)
 	c.SP -= 1
 }
 

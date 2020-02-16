@@ -74,5 +74,5 @@ func instructions(core *emu.Core) {
 
 	percent := (float32(count) / 151) * 100
 
-	fmt.Fprintf(file, "Total implemented: %d/151: %0.2f%%\nUnimplemented: %d\n", count, percent, 151 - count)
+	fmt.Fprintf(file, "Total implemented: %d/151: %0.2f%%\nUnimplemented: %d\n", count, percent, 151-count)
 }
