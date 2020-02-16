@@ -326,7 +326,7 @@ func (c *Core) tick() error {
 			strings.Join(ops, " "),
 			instr.Name(),
 			instr.AddressMeta().Asm(c, oppc),	// oppc == OP code PC
-			c.registerString(),
+			c.Registers(),
 			c.stackString(),
 		)
 
@@ -467,7 +467,7 @@ func flagsToString(ph uint8) string {
 	return fmt.Sprintf("%s%s--%s%s%s%s", sn, sv, sd, si, sz, sc)
 }
 
-func (c *Core) registerString() string {
+func (c *Core) Registers() string {
 	return fmt.Sprintf("A: %02X (%-3d) X: %02X (%-3d) Y: %02X (%-3d) SP: %02X (%-3d) [%02X] %s",
 		c.A,
 		c.A,
@@ -480,10 +480,6 @@ func (c *Core) registerString() string {
 		c.Phlags,
 		flagsToString(c.Phlags),
 	)
-}
-
-func (c *Core) DumpRegisters() {
-	fmt.Println(c.registerString())
 }
 
 func (c *Core) DumpPage(page uint8) {
@@ -518,64 +514,6 @@ func (c Core) DumpMemoryToFile(filename string) error {
 
 func (c Core) Ticks() uint64 {
 	return c.ticks
-}
-
-func (c *Core) tlog(msg string) {
-	if c.t != nil {
-		c.t.Log(msg)
-	}
-}
-
-func (c *Core) tlogf(fmt string, args ...interface{}) {
-	if c.t != nil {
-		c.t.Logf(fmt, args...)
-	}
-}
-
-func testCore(rom []byte, mem []byte, wram []byte) (*Core, error) {
-	core, err := NewCore(rom, false, 1000)
-	if err != nil {
-		return nil, err
-	}
-	core.testing = true
-
-	if mem != nil {
-		for len(mem) < 0x1000 {
-			mem = append(mem, 0x00)
-		}
-		core.memory = mem
-	}
-
-	if wram != nil {
-		core.wram = wram
-	}
-
-	return core, core.Run()
-}
-
-func padWithVectors(rom []byte, nmi, reset, irq uint16) []byte {
-	for len(rom)%256 != 0 {
-		rom = append(rom, 0xFF)
-	}
-
-	addr := len(rom) - 6
-
-	rom[addr] = byte(nmi & 0x00FF)
-	rom[addr+1] = byte(nmi >> 8)
-
-	rom[addr+2] = byte(reset & 0x00FF)
-	rom[addr+3] = byte(reset >> 8)
-
-	rom[addr+4] = byte(irq & 0x00FF)
-	rom[addr+5] = byte(irq >> 8)
-
-	return rom
-}
-
-func (c *Core) dbg(format string, args ...interface{}) {
-	if c.t != nil {
-		c.t.Logf(format, args...)
-	}
 }
 
 // Set zero and negative flags based on the given value
@@ -615,13 +553,6 @@ func (c *Core) addrRelative(pc uint16, offset uint8) uint16 {
 	}
 
 	return addr
-}
-
-func TwosCompInv(value uint8) (uint8, bool) {
-	if value&0x80 != 0 {
-		return (value ^ 0xFF) + 1, true
-	}
-	return value, false
 }
 
 func (c *Core) twosCompAdd(a, b uint8) uint8 {

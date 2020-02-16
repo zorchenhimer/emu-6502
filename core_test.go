@@ -482,7 +482,7 @@ func (core *Core) setRegisters(t *testing.T, r regState) {
 
 func (c *Core) resetTest(t *testing.T, rom, ram []byte) error {
 	t.Helper()
-	rom = padWithVectors(rom, 0x8000, 0x8000, 0x8000)
+	rom = PadWithVectors(rom, 0x8000, 0x8000, 0x8000)
 	if len(rom)%256 != 0 {
 		return fmt.Errorf("ROM is not divisible by 256: %d", len(rom))
 	}

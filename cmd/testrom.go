@@ -46,7 +46,7 @@ func main() {
 	err = core.Run()
 	if err != nil {
 		fmt.Println(err)
-		core.DumpRegisters()
+		fmt.Println(core.Registers())
 		fmt.Printf("Ticks: %d\n", core.Ticks())
 		//core.DumpPage(0x01)
 		//core.DumpPage(0x02)
