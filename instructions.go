@@ -954,7 +954,8 @@ func instr_PLP(c *Core, address uint16) {
 }
 
 func instr_SBC(c *Core, address uint16) {
-	c.A = c.twosCompSubtract(c.A, c.ReadByte(address))
+	//c.A = c.twosCompSubtract(c.A, c.ReadByte(address))
+	c.A = c.twosCompAdd(c.A, c.ReadByte(address) ^ 0xFF)
 }
 
 func instr_SEC(c *Core, address uint16) {

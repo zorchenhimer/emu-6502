@@ -607,10 +607,10 @@ func (c *Core) twosCompAdd(a, b uint8) uint8 {
 		c.Phlags = c.Phlags & (FLAG_CARRY ^ 0xFF)
 	}
 
-	if (a & 0x80) != (val & 0x80) {
-		c.Phlags = c.Phlags | FLAG_OVERFLOW
+	if ((a ^ val) & (b ^ val) & 0x80) == 0x80 {
+		c.Phlags |= FLAG_OVERFLOW
 	} else {
-		c.Phlags = c.Phlags & (FLAG_OVERFLOW ^ 0xFF)
+		c.Phlags &^= FLAG_OVERFLOW
 	}
 
 	c.setZeroNegative(val)
