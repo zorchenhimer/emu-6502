@@ -258,8 +258,7 @@ func (c *Core) dumpHistory() {
 }
 
 func (c *Core) Reset() {
-	c.Phlags |= FLAG_INTERRUPT
-	c.PC = c.ReadWord(VECTOR_RESET)
+	interruptList[VECTOR_RESET].Execute(c)
 }
 
 func (c *Core) tick() error {
