@@ -650,14 +650,10 @@ func instr_CLV(c *Core, address uint16) {
 
 func (c *Core) compare(a, b uint8) {
 	overflow := c.Phlags & FLAG_OVERFLOW
-	c.Phlags &^= FLAG_CARRY
+        c.Phlags |= FLAG_CARRY
 
-	val := c.twosCompSubtract(a, b)
+	c.twosCompAdd(a, b ^ 0xff)
 	c.Phlags = (c.Phlags &^ FLAG_OVERFLOW) | overflow
-
-	if val == 0 {
-		c.Phlags = c.Phlags | FLAG_CARRY | FLAG_ZERO
-	}
 }
 
 func instr_CMP(c *Core, address uint16) {
