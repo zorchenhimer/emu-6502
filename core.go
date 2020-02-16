@@ -3,6 +3,7 @@ package emu
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"io"
 	"strings"
 	"testing"
@@ -168,6 +169,15 @@ func (c *Core) WriteInt(addr uint16, value uint8) {
 }
 
 func (c *Core) Run() error {
+	stop := false
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	go func() {
+		for _ = range ch {
+			stop = true
+		}
+	}()
+
 	if c.DebugFile != nil {
 		c.Debug = true
 	}
@@ -183,7 +193,7 @@ func (c *Core) Run() error {
 
 	done := false
 	var err error
-	for !done {
+	for !(done || stop){
 		err = c.tick()
 		if err != nil {
 			return err
@@ -202,6 +212,11 @@ func (c *Core) Run() error {
 		if c.testing {
 			done = c.testDone
 		}
+	}
+
+	if stop {
+		fmt.Println("Halt received")
+		c.dumpHistory()
 	}
 
 	return nil
