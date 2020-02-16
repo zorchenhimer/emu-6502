@@ -18,6 +18,11 @@ const (
 	VECTOR_IRQ   uint16 = 0xFFFE
 )
 
+const (
+	NTSC time.Duration = time.Nanosecond * 16666667 // close enough, lol
+	PAL time.Duration = time.Millisecond * 20
+)
+
 type Core struct {
 	// Main registers
 	A uint8
@@ -28,6 +33,8 @@ type Core struct {
 	PC     uint16 // Program counter
 	Phlags uint8  // Status flags
 	SP     uint8  // Stack pointer
+
+	NmiFrequency time.Duration
 
 	memory []byte // Slice of loaded memory.  This is only main RAM.
 	rom    []byte // ROM image.  Needs to be a multiple of 256.
@@ -52,6 +59,8 @@ type Core struct {
 
 	history [HistoryLength]string
 	historyIdx int
+
+	nmiTicker *time.Ticker
 }
 
 func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
@@ -81,7 +90,7 @@ func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
 	return c, nil
 }
 
-func NewCore(rom []byte, wram bool, instrLimit uint64) (*Core, error) {
+func NewCore(rom []byte, wram bool, instrLimit uint64, nmiFrequency time.Duration) (*Core, error) {
 	if len(rom)%256 != 0 {
 		return nil, fmt.Errorf("ROM is not divisible by 256: %d", len(rom))
 	}
@@ -100,6 +109,7 @@ func NewCore(rom []byte, wram bool, instrLimit uint64) (*Core, error) {
 		InstructionLimit: instrLimit,
 
 		history:    [HistoryLength]string{},
+		nmiTicker: time.NewTicker(nmiFrequency),
 	}
 
 	if wram {
@@ -178,6 +188,10 @@ func (c *Core) Run() error {
 		}
 	}()
 
+	if c.nmiTicker != nil {
+		defer c.nmiTicker.Stop()
+	}
+
 	if c.DebugFile != nil {
 		c.Debug = true
 	}
@@ -243,6 +257,11 @@ func (c *Core) dumpHistory() {
 
 }
 
+func (c *Core) Reset() {
+	c.Phlags |= FLAG_INTERRUPT
+	c.PC = c.ReadWord(VECTOR_RESET)
+}
+
 func (c *Core) tick() error {
 	//c.PC += 1
 	if c.checkStuck {
@@ -258,6 +277,19 @@ func (c *Core) tick() error {
 			return fmt.Errorf("Stuck")
 		}
 	}
+
+	if c.nmiTicker != nil {
+		// If it's time to NMI, do it.
+		// Note that this can never happen during the execution of another
+		// instruction in this implementation.  That isn't the case for
+		// real hardware.
+		select {
+		case <- c.nmiTicker.C:
+			interruptList[VECTOR_NMI].Execute(c)
+		default:
+		}
+	}
+
 
 	opcode := c.ReadByte(c.PC)
 	//if c.fullRW {
