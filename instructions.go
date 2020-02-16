@@ -102,6 +102,10 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "ASL",
 		AddressMode: ADDR_Absolute,
 		Exec:           instr_ASL},
+	OP_ASL_AC: Accumulator{
+		OpCode:         OP_ASL_AC,
+		Instruction:    "ASL",
+		Exec:           instr_ASL},
 	OP_ASL_AX: ReadModifyWrite{
 		OpCode:         OP_ASL_AX,
 		Instruction:    "ASL",
@@ -348,6 +352,10 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "LSR",
 		AddressMode: ADDR_Absolute,
 		Exec:           instr_LSR},
+	OP_LSR_AC: Accumulator{
+		OpCode:         OP_LSR_AC,
+		Instruction:    "LSR",
+		Exec:           instr_LSR},
 	OP_LSR_AX: ReadModifyWrite{
 		OpCode:         OP_LSR_AX,
 		Instruction:    "LSR",
@@ -578,6 +586,10 @@ var instructionList = map[byte]Instruction{
 		Instruction:    "ROL",
 		AddressMode: ADDR_Absolute,
 		Exec:           instr_ROL},
+	OP_ROL_AC: Accumulator{
+		OpCode:         OP_ROL_AC,
+		Instruction:    "ROL",
+		Exec:           instr_ROL},
 	OP_ROL_AX: ReadModifyWrite{
 		OpCode:         OP_ROL_AX,
 		Instruction:    "ROL",
@@ -598,6 +610,10 @@ var instructionList = map[byte]Instruction{
 		OpCode:         OP_ROR_AB,
 		Instruction:    "ROR",
 		AddressMode: ADDR_Absolute,
+		Exec:           instr_ROR},
+	OP_ROR_AC: Accumulator{
+		OpCode:         OP_ROR_AC,
+		Instruction:    "ROR",
 		Exec:           instr_ROR},
 	OP_ROR_AX: ReadModifyWrite{
 		OpCode:         OP_ROR_AX,
@@ -855,10 +871,21 @@ func instr_AND(c *Core, address uint16) {
 }
 
 func instr_BIT(c *Core, address uint16) {
-	val := c.A & c.ReadByte(address)
-	c.setZeroNegative(val)
-	c.Phlags = (c.Phlags &^ FLAG_OVERFLOW) | (val & FLAG_OVERFLOW)
+	val := c.ReadByte(address)
+	c.setZeroNegative(val & c.A)
+	c.Phlags = (c.Phlags &^ (FLAG_NEGATIVE | FLAG_OVERFLOW)) | (val & (FLAG_NEGATIVE | FLAG_OVERFLOW))
 }
+
+//func instr_BIT(c *Core, address uint16) {
+//	val := c.ReadByte(address)
+//	and := c.A & val
+//	c.Phlags &^= FLAG_NEGATIVE | FLAG_OVERFLOW | FLAG_ZERO
+//	if and == 0 {
+//		c.Phlags |= FLAG_ZERO
+//	}
+//
+//	c.Phlags |= val & (FLAG_NEGATIVE | FLAG_OVERFLOW)
+//}
 
 func instr_DEX(c *Core, address uint16) {
 	c.X -= 1
@@ -906,6 +933,7 @@ func instr_NOP(c *Core, address uint16) {
 
 func instr_ORA(c *Core, address uint16) {
 	c.A |= c.ReadByte(address)
+	c.setZeroNegative(c.A)
 }
 
 func instr_PHA(c *Core, address uint16) {
@@ -980,6 +1008,30 @@ func instr_TXS(c *Core, address uint16) {
 func instr_TYA(c *Core, address uint16) {
 	c.A = c.Y
 	c.setZeroNegative(c.A)
+}
+
+// Specifically the Accumulator addressig mode
+type Accumulator struct {
+	OpCode byte
+	Instruction string
+	Exec func(c *Core, value uint8) uint8
+}
+
+func (a Accumulator) AddressMeta() AddressModeMeta {
+	return ADDR_Accumulator
+}
+
+func (a Accumulator) Name() string {
+	return a.Instruction
+}
+
+func (a Accumulator) Execute(c *Core) {
+	c.A = a.Exec(c, c.A)
+	c.PC += 1
+}
+
+func (a Accumulator) InstrLength(c *Core) uint8 {
+	return 1
 }
 
 type ReadModifyWrite struct {
