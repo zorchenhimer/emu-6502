@@ -215,8 +215,8 @@ func (c *Core) Run() error {
 	}
 
 	if stop {
-		fmt.Println("Halt received")
 		c.dumpHistory()
+		return fmt.Errorf("Halt received")
 	}
 
 	return nil
