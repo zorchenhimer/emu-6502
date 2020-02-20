@@ -1,5 +1,9 @@
 package emu
 
+import (
+	"fmt"
+)
+
 type ExecFunc func(c *Core, address uint16)
 
 type Instruction interface {
@@ -10,6 +14,11 @@ type Instruction interface {
 }
 
 var instructionList = map[byte]Instruction{
+
+	OP_DEBUG: DebugInstruction{
+		OpCode:      OP_DEBUG,
+		Instruction: "DBG",
+		Exec:        instr_DBG},
 
 	OP_ADC_AB: StandardInstruction{
 		OpCode:      OP_ADC_AB,
@@ -793,6 +802,33 @@ var instructionList = map[byte]Instruction{
 		Instruction: "TYA",
 		AddressMode: ADDR_Implied,
 		Exec:        instr_TYA},
+}
+
+type DebugInstruction struct {
+	OpCode byte
+	Instruction string
+	Exec func(c *Core, i Instruction)
+}
+
+func (di DebugInstruction) AddressMeta() AddressModeMeta {
+	return ADDR_Implied
+}
+
+func (di DebugInstruction) Name() string {
+	return di.Instruction
+}
+
+func (di DebugInstruction) Execute(c *Core) {
+	di.Exec(c, di)
+	c.PC += 1
+}
+
+func (di DebugInstruction) InstrLength(c *Core) uint8 {
+	return 1
+}
+
+func instr_DBG(c *Core, i Instruction) {
+	fmt.Println(c.historyString(c.PC, i))
 }
 
 type StandardInstruction struct {

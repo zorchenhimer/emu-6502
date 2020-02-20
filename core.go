@@ -273,7 +273,7 @@ func (c *Core) tick() error {
 
 		if c.lastSame > 0 {
 			c.dumpHistory()
-			return fmt.Errorf("Stuck")
+			return fmt.Errorf("Stuck at $%04X", c.PC)
 		}
 	}
 
@@ -312,21 +312,7 @@ func (c *Core) tick() error {
 	instr.Execute(c)
 
 	if c.Debug {
-		l := instr.InstrLength(c)
-		ops := []string{}
-		for i := uint8(0); i < l; i++ {
-			ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
-		}
-
-		dbgLine := fmt.Sprintf("[%06d] $%04X: %-9s %s %-17s %s %s",
-			c.ticks,
-			oppc,
-			strings.Join(ops, " "),
-			instr.Name(),
-			instr.AddressMeta().Asm(c, oppc), // oppc == OP code PC
-			c.Registers(),
-			c.stackString(),
-		)
+		dbgLine := c.historyString(oppc, instr)
 
 		c.history[c.historyIdx] = dbgLine
 		c.historyIdx += 1
@@ -340,6 +326,24 @@ func (c *Core) tick() error {
 	}
 
 	return nil
+}
+
+func (c *Core) historyString(oppc uint16, instr Instruction) string {
+	l := instr.InstrLength(c)
+	ops := []string{}
+	for i := uint8(0); i < l; i++ {
+		ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
+	}
+
+	return fmt.Sprintf("[%06d] $%04X: %-9s %s %-17s %s %s",
+		c.ticks,
+		oppc,
+		strings.Join(ops, " "),
+		instr.Name(),
+		instr.AddressMeta().Asm(c, oppc), // oppc == OP code PC
+		c.Registers(),
+		c.stackString(),
+	)
 }
 
 func (c *Core) Instructions() []string {
@@ -492,7 +496,7 @@ func (c *Core) DumpPage(page uint8) {
 	}
 }
 
-func (c Core) DumpMemoryToFile(filename string) error {
+func (c *Core) DumpMemoryToFile(filename string) error {
 	vals := []string{}
 	for i := uint(0); i < 0x10000; i++ {
 		vals = append(vals, fmt.Sprintf("%02X", c.ReadByte(uint16(i))))
@@ -510,7 +514,7 @@ func (c Core) DumpMemoryToFile(filename string) error {
 	return nil
 }
 
-func (c Core) Ticks() uint64 {
+func (c *Core) Ticks() uint64 {
 	return c.ticks
 }
 

@@ -30,18 +30,18 @@ func main() {
 
 	instructions(core)
 
-	file, err := os.Create("debug.txt")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer file.Close()
+	//file, err := os.Create("debug.txt")
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
+	//defer file.Close()
 
-	core.DebugFile = file
+	//core.DebugFile = file
 	// vectors have traps
-	core.PC = 0x8000
-	//core.PC = 0x0400
-	core.Debug = true
+	//core.PC = 0x8000
+	core.PC = 0x0400
+	core.Debug = false
 
 	err = core.Run()
 	if err != nil {

@@ -213,6 +213,10 @@ type opcodeExec func(core *Core)
    _ZY     zero page, y
 */
 const (
+	// Debug OP Codes use unofficial NOPs
+	OP_DEBUG  byte = 0x1A // Print CPU history line
+
+	// Official OP Codes
 	OP_BRK    byte = 0x00 //
 	OP_ORA_IX byte = 0x01 //(Indirect,X)
 	OP_ORA_ZP byte = 0x05 //Zero Page
