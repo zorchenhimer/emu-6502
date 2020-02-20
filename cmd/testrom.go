@@ -43,6 +43,12 @@ func main() {
 	core.PC = 0x0400
 	core.Debug = false
 
+	err = core.DumpMemoryToFile("before.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	err = core.Run()
 	if err != nil {
 		fmt.Println(err)
@@ -51,6 +57,12 @@ func main() {
 		//core.DumpPage(0x01)
 		//core.DumpPage(0x02)
 		core.DumpMemoryToFile("memory.txt")
+		return
+	}
+
+	err = core.DumpMemoryToFile("after.txt")
+	if err != nil {
+		fmt.Println(err)
 		return
 	}
 }
