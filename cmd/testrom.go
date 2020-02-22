@@ -28,7 +28,12 @@ func main() {
 		return
 	}
 
-	instructions(core)
+	core.Breakpoints.Register(emu.EXECUTE, "Test success!", 0x3D78, func(c *emu.Core, event uint8, value uint8) {
+		fmt.Println("\nTESTS PASS!\n")
+		c.Halt()
+	})
+
+	//instructions(core)
 
 	//file, err := os.Create("debug.txt")
 	//if err != nil {

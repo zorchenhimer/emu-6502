@@ -61,6 +61,11 @@ type Core struct {
 	historyIdx int
 
 	nmiTicker *time.Ticker
+	nmiCount  uint
+
+	Breakpoints *Breakpoints
+
+	stop bool // set to true to end the Run loop
 }
 
 func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
@@ -84,6 +89,7 @@ func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
 		fullRW:     true,
 		checkStuck: true,
 		history:    [HistoryLength]string{},
+		Breakpoints: &Breakpoints{},
 	}
 
 	c.PC = c.ReadWord(VECTOR_RESET)
@@ -110,6 +116,7 @@ func NewCore(rom []byte, wram bool, instrLimit uint64, nmiFrequency time.Duratio
 
 		history:   [HistoryLength]string{},
 		nmiTicker: time.NewTicker(nmiFrequency),
+		Breakpoints: &Breakpoints{},
 	}
 
 	if wram {
@@ -130,26 +137,34 @@ func NewCore(rom []byte, wram bool, instrLimit uint64, nmiFrequency time.Duratio
 func (c *Core) ReadByte(addr uint16) uint8 {
 	c.lastReadAddr = addr
 	if c.fullRW {
+		c.Breakpoints.Read(c, addr, c.rom[addr])
 		return c.rom[addr]
 	}
 
 	if addr < 0x1000 {
+		c.Breakpoints.Read(c, addr, c.memory[addr])
 		return c.memory[addr]
 	}
 
 	if addr >= 0x6000 && addr < 0x8000 {
 		if c.wram != nil {
 			// TODO: make sure this works with variable WRAM sizes (paging?)
-			return c.wram[addr%uint16(len(c.wram))]
+			val := c.wram[addr%uint16(len(c.wram))]
+			c.Breakpoints.Read(c, addr, val)
+			return val
 		}
+		c.Breakpoints.Read(c, addr, 0)
 		return 0
 	}
 
 	if addr >= 0x8000 {
-		return c.rom[uint(addr)%uint(len(c.rom))]
+		val := c.rom[uint(addr)%uint(len(c.rom))]
+		c.Breakpoints.Read(c, addr, val)
+		return val
 	}
 
 	// "Open bus"  always return zero.
+	c.Breakpoints.Read(c, addr, 0)
 	return 0
 }
 
@@ -160,6 +175,7 @@ func (c *Core) ReadWord(addr uint16) uint16 {
 
 // Write to an address.  This will delegate to API if needed.
 func (c *Core) WriteByte(addr uint16, value byte) {
+	c.Breakpoints.Write(c, addr, value)
 	if c.fullRW {
 		c.rom[addr] = value
 		return
@@ -179,12 +195,11 @@ func (c *Core) WriteInt(addr uint16, value uint8) {
 }
 
 func (c *Core) Run() error {
-	stop := false
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	go func() {
 		for _ = range ch {
-			stop = true
+			c.stop = true
 		}
 	}()
 
@@ -207,7 +222,7 @@ func (c *Core) Run() error {
 
 	done := false
 	var err error
-	for !(done || stop) {
+	for !(done || c.stop) {
 		err = c.tick()
 		if err != nil {
 			return err
@@ -228,10 +243,12 @@ func (c *Core) Run() error {
 		}
 	}
 
-	if stop {
+	if c.stop {
 		c.dumpHistory()
 		return fmt.Errorf("Halt received")
 	}
+
+	fmt.Printf("nmiCount: %d\n", c.nmiCount)
 
 	return nil
 }
@@ -257,8 +274,27 @@ func (c *Core) dumpHistory() {
 
 }
 
+func (c *Core) Halt() {
+	c.stop = true
+	fmt.Println("CPU Halt()'d")
+}
+
 func (c *Core) Reset() {
-	interruptList[VECTOR_RESET].Execute(c)
+	c.runInterrupt(VECTOR_RESET)
+}
+
+func (c *Core) IRQ() {
+	c.runInterrupt(VECTOR_IRQ)
+}
+
+func (c *Core) NMI() {
+	c.runInterrupt(VECTOR_IRQ)
+}
+
+func (c *Core) runInterrupt(interrupt uint16) {
+	if vector, ok := interruptList[interrupt]; ok {
+		vector.Execute(c)
+	}
 }
 
 func (c *Core) tick() error {
@@ -284,10 +320,13 @@ func (c *Core) tick() error {
 		// real hardware.
 		select {
 		case <-c.nmiTicker.C:
-			interruptList[VECTOR_NMI].Execute(c)
+			c.nmiCount++
+			c.NMI()
 		default:
 		}
 	}
+
+	c.Breakpoints.Execute(c, c.PC, 0)
 
 	opcode := c.ReadByte(c.PC)
 	//if c.fullRW {
@@ -312,7 +351,7 @@ func (c *Core) tick() error {
 	instr.Execute(c)
 
 	if c.Debug {
-		dbgLine := c.historyString(oppc, instr)
+		dbgLine := c.HistoryString(oppc, instr)
 
 		c.history[c.historyIdx] = dbgLine
 		c.historyIdx += 1
@@ -328,7 +367,7 @@ func (c *Core) tick() error {
 	return nil
 }
 
-func (c *Core) historyString(oppc uint16, instr Instruction) string {
+func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
 	l := instr.InstrLength(c)
 	ops := []string{}
 	for i := uint8(0); i < l; i++ {
