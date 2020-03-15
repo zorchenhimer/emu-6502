@@ -1190,11 +1190,13 @@ func instr_JMP(c *Core, address uint16) uint16 {
 }
 
 func instr_JSR(c *Core, address uint16) uint16 {
+	c.routineDepth += 1
 	c.pushAddress(c.PC + 2)
 	return address
 }
 
 func instr_RTS(c *Core, address uint16) uint16 {
+	c.routineDepth -= 1
 	return c.pullAddress() + 1
 }
 

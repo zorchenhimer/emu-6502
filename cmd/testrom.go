@@ -8,6 +8,7 @@ import (
 	//"strings"
 
 	"github.com/zorchenhimer/emu-6502"
+	"github.com/zorchenhimer/emu-6502/mappers"
 )
 
 func main() {
@@ -22,7 +23,13 @@ func main() {
 		return
 	}
 
-	core, err := emu.NewRWCore(rom, 0)
+	mapper, err := mappers.NewFullRW(rom)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	core, err := emu.NewCore(mapper)
 	if err != nil {
 		fmt.Println(err)
 		return

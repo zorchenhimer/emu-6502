@@ -6,8 +6,9 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"testing"
 	"time"
+
+	"github.com/zorchenhimer/emu-6502/mappers"
 )
 
 const HistoryLength int = 100
@@ -36,17 +37,12 @@ type Core struct {
 
 	NmiFrequency time.Duration
 
-	memory []byte // Slice of loaded memory.  This is only main RAM.
-	rom    []byte // ROM image.  Needs to be a multiple of 256.
-	wram   []byte
+	memory mappers.Mapper
 
 	InstructionLimit uint64 // number of instructions to run
 	testing          bool
 	testDone         bool
-	t                *testing.T
 	ticks            uint64
-
-	fullRW bool
 
 	lastPC       uint16
 	lastSame     int
@@ -66,13 +62,13 @@ type Core struct {
 	Breakpoints *Breakpoints
 
 	stop bool // set to true to end the Run loop
+
+	// used for RunRoutine()
+	runRoutine   bool
+	routineDepth int
 }
 
-func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
-	if len(rom) != 0x10000 {
-		return nil, fmt.Errorf("ROM must be exactly 64k (%X)", len(rom))
-	}
-
+func NewCore(rom mappers.Mapper) (*Core, error) {
 	c := &Core{
 		A:      0,
 		X:      0,
@@ -81,91 +77,25 @@ func NewRWCore(rom []byte, instrLimit uint64) (*Core, error) {
 		Phlags: 0,
 		SP:     0,
 
-		//memory: make([]byte, 0x1000), // no registers, no WRAM, no ROM
-		rom: rom,
+		memory: rom,
 
-		InstructionLimit: instrLimit,
-
-		fullRW:     true,
-		checkStuck: true,
-		history:    [HistoryLength]string{},
-		Breakpoints: &Breakpoints{},
-	}
-
-	c.PC = c.ReadWord(VECTOR_RESET)
-	return c, nil
-}
-
-func NewCore(rom []byte, wram bool, instrLimit uint64, nmiFrequency time.Duration) (*Core, error) {
-	if len(rom)%256 != 0 {
-		return nil, fmt.Errorf("ROM is not divisible by 256: %d", len(rom))
-	}
-
-	c := &Core{
-		A:      0,
-		X:      0,
-		Y:      0,
-		PC:     0,
-		Phlags: 0,
-		SP:     0,
-
-		memory: make([]byte, 0x1000), // no registers, no WRAM, no ROM
-		rom:    rom,
-
-		InstructionLimit: instrLimit,
+		//InstructionLimit: instrLimit,
 
 		history:   [HistoryLength]string{},
-		nmiTicker: time.NewTicker(nmiFrequency),
+		//nmiTicker: time.NewTicker(nmiFrequency),
 		Breakpoints: &Breakpoints{},
 	}
 
-	if wram {
-		c.wram = make([]byte, 0x2000)
-	}
-
-	if len(c.rom) == 0 {
-		return nil, fmt.Errorf("No rom!")
-	}
-	fmt.Printf("Rom length: %X\n", len(c.rom))
-
 	c.PC = c.ReadWord(VECTOR_RESET)
-
 	return c, nil
 }
 
 // Read address.  This will read from API registers if needed.
 func (c *Core) ReadByte(addr uint16) uint8 {
 	c.lastReadAddr = addr
-	if c.fullRW {
-		c.Breakpoints.Read(c, addr, c.rom[addr])
-		return c.rom[addr]
-	}
-
-	if addr < 0x1000 {
-		c.Breakpoints.Read(c, addr, c.memory[addr])
-		return c.memory[addr]
-	}
-
-	if addr >= 0x6000 && addr < 0x8000 {
-		if c.wram != nil {
-			// TODO: make sure this works with variable WRAM sizes (paging?)
-			val := c.wram[addr%uint16(len(c.wram))]
-			c.Breakpoints.Read(c, addr, val)
-			return val
-		}
-		c.Breakpoints.Read(c, addr, 0)
-		return 0
-	}
-
-	if addr >= 0x8000 {
-		val := c.rom[uint(addr)%uint(len(c.rom))]
-		c.Breakpoints.Read(c, addr, val)
-		return val
-	}
-
-	// "Open bus"  always return zero.
-	c.Breakpoints.Read(c, addr, 0)
-	return 0
+	val := c.memory.ReadByte(addr)
+	c.Breakpoints.Read(c, addr, val)
+	return val
 }
 
 func (c *Core) ReadWord(addr uint16) uint16 {
@@ -176,22 +106,7 @@ func (c *Core) ReadWord(addr uint16) uint16 {
 // Write to an address.  This will delegate to API if needed.
 func (c *Core) WriteByte(addr uint16, value byte) {
 	c.Breakpoints.Write(c, addr, value)
-	if c.fullRW {
-		c.rom[addr] = value
-		return
-	}
-
-	if addr < 0x1000 {
-		c.memory[addr] = value
-	} else if addr < 0x6000 {
-		// TODO: software registers
-	} else if addr >= 0x6000 && addr < 0x8000 && c.wram != nil {
-		c.wram[addr] = value
-	}
-}
-
-func (c *Core) WriteInt(addr uint16, value uint8) {
-	c.WriteByte(addr, byte(value))
+	c.memory.WriteByte(addr, value)
 }
 
 func (c *Core) Run() error {
@@ -249,6 +164,44 @@ func (c *Core) Run() error {
 	}
 
 	fmt.Printf("nmiCount: %d\n", c.nmiCount)
+
+	return nil
+}
+
+// Run a routine and return after the last RTS
+func (c *Core) RunRoutine(address uint16) error {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	go func() {
+		for _ = range ch {
+			c.stop = true
+		}
+	}()
+
+	if c.DebugFile != nil {
+		c.Debug = true
+	}
+
+	start := time.Now()
+	defer func() {
+		fmt.Printf("time: %s\nticks: %d\n",
+			time.Now().Sub(start),
+			c.ticks)
+	}()
+
+	// Start value of stack pointer
+	//sp := c.SP
+	c.routineDepth = 0
+	c.runRoutine = true
+	c.PC = address
+
+	var err error
+	for c.routineDepth > -1 && !c.stop {
+		err = c.tick()
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -329,16 +282,12 @@ func (c *Core) tick() error {
 	c.Breakpoints.Execute(c, c.PC, 0)
 
 	opcode := c.ReadByte(c.PC)
-	//if c.fullRW {
-	//	fmt.Printf("[%06d] %04X: %02X\n", c.ticks, c.PC, opcode)
-	//}
 
 	if opcode == 0xFF && c.testing {
 		c.testDone = true
 		return nil // 0xFF means end of test
 	}
 
-	//fn, ok := opcodes[opcode]
 	instr, ok := instructionList[opcode]
 	if !ok || instr == nil {
 		c.dumpHistory()
@@ -559,7 +508,6 @@ func (c *Core) Ticks() uint64 {
 
 // Set zero and negative flags based on the given value
 func (c *Core) setZeroNegative(value uint8) uint8 {
-	//prev := c.Phlags
 	// zero
 	if value == 0 {
 		c.Phlags = c.Phlags | FLAG_ZERO
@@ -573,8 +521,6 @@ func (c *Core) setZeroNegative(value uint8) uint8 {
 	} else {
 		c.Phlags = c.Phlags & (FLAG_NEGATIVE ^ 0xFF)
 	}
-	//fmt.Printf("[Ph] %02X -> %02X\n", prev, c.Phlags)
-	//fmt.Printf("%s -> %s\n", prev, flagsToString(c.Phlags))
 
 	return value
 }
@@ -621,7 +567,6 @@ func (c *Core) twosCompAdd(a, b uint8) uint8 {
 }
 
 func (c *Core) twosCompSubtract(a, b uint8) uint8 {
-	//b = (b ^ 0xFF) + 1
 	b = (b - 1) ^ 0xFF
 	return c.twosCompAdd(a, b)
 }
