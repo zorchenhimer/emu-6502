@@ -3,6 +3,7 @@ package emu
 import (
 	"fmt"
 	"io"
+	//"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -66,6 +67,9 @@ type Core struct {
 	// used for RunRoutine()
 	runRoutine   bool
 	routineDepth int
+
+	EnableCDL bool
+	//cdl *cdlData
 }
 
 func NewCore(rom mappers.Mapper) (*Core, error) {
@@ -170,24 +174,16 @@ func (c *Core) Run() error {
 
 // Run a routine and return after the last RTS
 func (c *Core) RunRoutine(address uint16) error {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
-	go func() {
-		for _ = range ch {
-			c.stop = true
-		}
-	}()
-
 	if c.DebugFile != nil {
 		c.Debug = true
 	}
 
-	start := time.Now()
-	defer func() {
-		fmt.Printf("time: %s\nticks: %d\n",
-			time.Now().Sub(start),
-			c.ticks)
-	}()
+	//start := time.Now()
+	//defer func() {
+	//	fmt.Printf("time: %s\nticks: %d\n",
+	//		time.Now().Sub(start),
+	//		c.ticks)
+	//}()
 
 	// Start value of stack pointer
 	//sp := c.SP
@@ -230,6 +226,16 @@ func (c *Core) dumpHistory() {
 func (c *Core) Halt() {
 	c.stop = true
 	fmt.Println("CPU Halt()'d")
+}
+
+func (c *Core) HardReset() {
+	c.memory.ClearRam()
+	c.A = 0
+	c.X = 0
+	c.Y = 0
+	c.PC = 0
+	c.Phlags = 0
+	c.SP = 0
 }
 
 func (c *Core) Reset() {
@@ -371,13 +377,18 @@ func (c *Core) stackString() string {
 	return strings.Join(st, " ")
 }
 
-func (c *Core) DumpMemoryRange(start, end uint16) {
+func (c *Core) DumpMemoryRange(filename string, start, end uint16) error {
 	if end < start {
-		fmt.Println("Invalid dump range given")
-		return
+		return fmt.Errorf("Invalid dump range given")
 	}
 
-	fmt.Printf("start: $%02X end: $%02X\n", start, end)
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	fmt.Fprintf(file, "start: $%02X end: $%02X\n", start, end)
 
 	vals := []byte{}
 	current := start
@@ -388,8 +399,10 @@ func (c *Core) DumpMemoryRange(start, end uint16) {
 	}
 
 	for i, b := range vals {
-		fmt.Printf("$%02X: $%02X (%d)\n", i+int(start), b, b)
+		fmt.Fprintf(file, "$%02X: $%02X (%d)\n", i+int(start), b, b)
 	}
+
+	return nil
 }
 
 const (

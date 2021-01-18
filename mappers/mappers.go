@@ -12,6 +12,8 @@ type Mapper interface {
 	// Debugging/Info
 	Name() string
 	State() string
+
+	ClearRam()
 }
 
 var (

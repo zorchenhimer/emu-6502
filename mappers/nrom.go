@@ -79,3 +79,9 @@ func (nr *NROM) WriteByte(address uint16, value uint8) {
 	}
 }
 
+func (nr *NROM) ClearRam() {
+	nr.ram = [0x0800]byte{}
+	if nr.hasRam {
+		nr.wram = make([]byte, 0x2000)
+	}
+}

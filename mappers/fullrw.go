@@ -29,3 +29,5 @@ func (rw *FullRW) ReadByte(address uint16) uint8 {
 func (rw *FullRW) WriteByte(address uint16, value uint8) {
 	rw.rom[address] = value
 }
+
+func (rw *FullRW) ClearRam() {}

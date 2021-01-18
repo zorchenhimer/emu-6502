@@ -174,3 +174,9 @@ func (m *MMC1) newState(address uint16) {
 	}
 }
 
+func (m *MMC1) ClearRam() {
+	m.ram = [0x0800]byte{}
+	if m.hasRam {
+		m.wram = make([]byte, 0x2000)
+	}
+}
