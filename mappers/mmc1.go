@@ -5,10 +5,14 @@ import (
 	"fmt"
 )
 
+func init() {
+	registerMapper(1, NewMMC1)
+}
+
 type MMC1 struct {
 	rom []byte
 	ram [0x0800]byte
-	wram []byte
+	wram [0x2000]byte
 
 	hasRam bool
 
@@ -20,7 +24,7 @@ type MMC1 struct {
 
 	// 0, 1 - switch 32kb at $8000, ignoring low bit of bank number
 	// 2 - fix first bank to $8000, switch 16kb bank at $C000
-	// 3 - fix last bank at $C000, switch 16kb bank at $C000
+	// 3 - fix last bank at $C000, switch 16kb bank at $8000
 	PrgBankMode uint8
 
 	// 0 - switch 8kb at a time
@@ -36,8 +40,60 @@ type MMC1 struct {
 	shiftCount uint8
 }
 
+func (m *MMC1) GetState() interface{} {
+	state := &MMC1{
+		hasRam: m.hasRam,
+		Mirroring: m.Mirroring,
+		PrgBankMode: m.PrgBankMode,
+		ChrBankMode: m.ChrBankMode,
+		ChrBank0: m.ChrBank0,
+		ChrBank1: m.ChrBank1,
+		PrgBank: m.PrgBank,
+		shiftReg: m.shiftReg,
+		shiftCount: m.shiftCount,
+
+		// Pointer, not duplicated
+		rom: m.rom,
+		ram: [0x0800]byte{},
+	}
+
+	if m.hasRam {
+		state.wram = [0x2000]byte{}
+		wramCopy(&state.wram, &m.wram)
+	}
+
+	ramCopy(&state.ram, &m.ram)
+
+	return state
+}
+
+func (m *MMC1) SetState(data interface{}) error {
+	state, ok := data.(MMC1)
+	if !ok {
+		return fmt.Errorf("Invalid state given")
+	}
+
+	m.hasRam = state.hasRam
+	m.Mirroring = state.Mirroring
+	m.PrgBankMode = state.PrgBankMode
+	m.ChrBankMode = state.ChrBankMode
+	m.ChrBank0 = state.ChrBank0
+	m.ChrBank1 = state.ChrBank1
+	m.PrgBank = state.PrgBank
+	m.shiftReg = state.shiftReg
+	m.shiftCount = state.shiftCount
+
+	if m.hasRam {
+		m.wram = [0x2000]byte{}
+		wramCopy(&m.wram, &state.wram)
+	}
+	ramCopy(&m.ram, &state.ram)
+
+	return nil
+}
+
 func NewMMC1(data []byte, hasRam bool) (Mapper, error) {
-	//panic("Rewrite the NROM stuff")
+	// FIXME: data doesn't account for CHR
 	mmc1 := &MMC1{
 		rom: data,
 		ram: [0x0800]byte{},
@@ -53,10 +109,11 @@ func NewMMC1(data []byte, hasRam bool) (Mapper, error) {
 	}
 
 	if hasRam {
-		mmc1.wram = make([]byte, 0x2000)
+		mmc1.wram = [0x2000]byte{}
 	}
 
 	if len(data) % 0x8000 != 0 {
+		fmt.Printf("len(data): %d\nlen(data) %% 0x8000: %d\n", len(data), len(data) % 0x8000)
 		return nil, ErrRomSize
 	}
 
@@ -84,15 +141,11 @@ func (m *MMC1) State() string {
 	return out.String()
 }
 
-func (m *MMC1) ReadByte(address uint16) uint8 {
-	if address < 0x2000 {
-		return m.ram[address % 0x0800]
-	} else if address < 0x6000 {
-		return 0
-	} else if address < 0x8000 && m.wram != nil {
-		return m.wram[address - 0x6000]
-	}
+func (m *MMC1) ReadWord(address uint16) uint16 {
+	return uint16(m.ReadByte(address)) | (uint16(m.ReadByte(address+1)) << 8)
+}
 
+func (m *MMC1) Offset(address uint16) uint32 {
 	romAddr := uint32(address - 0x8000)
 	switch m.PrgBankMode {
 	case 0, 1:
@@ -105,8 +158,10 @@ func (m *MMC1) ReadByte(address uint16) uint8 {
 		if romAddr < 0x4000 {
 			romAddr = (uint32(m.PrgBank) * 0x4000) + romAddr
 		} else {
-			romAddr = (14 * 0x4000) + romAddr
+			lastBank := uint32(len(m.rom) / 0x4000) - 1
+			romAddr = (uint32(address) % 0x4000) + (0x4000 * lastBank)
 		}
+		//fmt.Printf("[3] %04X -> %08X\n", address, romAddr)
 	default:
 		panic(fmt.Sprintf("Invalid PrgBankMode: %02X"))
 	}
@@ -115,7 +170,21 @@ func (m *MMC1) ReadByte(address uint16) uint8 {
 		panic(fmt.Sprintf("address out of range for ROM: $%04X -> 0x%06X; len: 0x%06X [%s]",
 			address, romAddr, len(m.rom), m.State()))
 	}
-	return m.rom[romAddr]
+
+	return romAddr + 16
+}
+
+func (m *MMC1) ReadByte(address uint16) uint8 {
+	// RAM
+	if address < 0x2000 {
+		return m.ram[address % 0x0800]
+	} else if address < 0x6000 {
+		return 0
+	} else if address < 0x8000 && m.hasRam {
+		return m.wram[address - 0x6000]
+	}
+
+	return m.rom[m.Offset(address)-16]
 }
 
 func (m *MMC1) WriteByte(address uint16, value uint8) {
@@ -177,6 +246,6 @@ func (m *MMC1) newState(address uint16) {
 func (m *MMC1) ClearRam() {
 	m.ram = [0x0800]byte{}
 	if m.hasRam {
-		m.wram = make([]byte, 0x2000)
+		m.wram = [0x2000]byte{}
 	}
 }

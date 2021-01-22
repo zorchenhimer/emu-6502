@@ -1,0 +1,3 @@
+github.com/mitchellh/go-wordwrap v1.0.0/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
+github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b h1:0dYZvX3IHhdXp7An6gXZzYIXdqHammonKDqtjbNDjTA=
+github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b/go.mod h1:r3Inhjt3LXORPy+p5FgbujlGhXH1DqZxJHEOl46x73Q=
