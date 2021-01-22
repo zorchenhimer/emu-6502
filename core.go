@@ -25,6 +25,42 @@ const (
 	PAL  time.Duration = time.Millisecond * 20
 )
 
+type CpuState struct {
+	// Main registers
+	A uint8
+	X uint8
+	Y uint8
+
+	// Other registers
+	PC     uint16 // Program counter
+	Phlags uint8  // Status flags
+	SP     uint8  // Stack pointer
+}
+
+func (c *Core) GetState() CpuState {
+	return CpuState{
+		A: c.A,
+		X: c.X,
+		Y: c.Y,
+
+		PC:     c.PC,
+		Phlags: c.Phlags,
+		SP:     c.SP,
+	}
+}
+
+func (c *Core) SetState(state CpuState) {
+	c.A = state.A
+	c.X = state.X
+	c.Y = state.Y
+
+	c.PC =     state.PC
+	c.Phlags = state.Phlags
+	c.SP =     state.SP
+
+	fmt.Println("new CPU state set", flagsToString(c.Phlags))
+}
+
 type Core struct {
 	// Main registers
 	A uint8
@@ -142,7 +178,7 @@ func (c *Core) Run() error {
 	done := false
 	var err error
 	for !(done || c.stop) {
-		err = c.tick()
+		err = c.Tick()
 		if err != nil {
 			return err
 		}
@@ -193,13 +229,21 @@ func (c *Core) RunRoutine(address uint16) error {
 
 	var err error
 	for c.routineDepth > -1 && !c.stop {
-		err = c.tick()
+		err = c.Tick()
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (c *Core) LastInstruction() string {
+	idx := c.historyIdx - 1
+	if idx < 0 {
+		idx = HistoryLength-1
+	}
+	return c.history[idx]
 }
 
 func (c *Core) dumpHistory() {
@@ -220,7 +264,6 @@ func (c *Core) dumpHistory() {
 		}
 		fmt.Println(c.history[i])
 	}
-
 }
 
 func (c *Core) Halt() {
@@ -256,7 +299,46 @@ func (c *Core) runInterrupt(interrupt uint16) {
 	}
 }
 
-func (c *Core) tick() error {
+func (c *Core) PeekStackWord() uint16 {
+	val := c.pullAddress()
+	c.pushAddress(val)
+
+	return val
+}
+
+func (c *Core) Peek() (Token, error) {
+	opcode := c.ReadByte(c.PC)
+
+	if opcode == 0xFF && c.testing {
+		c.testDone = true
+		return nil, fmt.Errorf("Testing OpCode Found") // 0xFF means end of test
+	}
+
+	instr, ok := instructionList[opcode]
+	if !ok || instr == nil {
+		c.dumpHistory()
+		return nil, fmt.Errorf("OP Code not implemented: [$%04X] $%02X", c.PC, opcode)
+	}
+
+	if isBranch(opcode) {
+		arg := c.ReadByte(c.PC+1)
+		dest := int(c.PC) + int(int8(arg))
+		return &InstructionBranch{opCode: opcode, dest: uint16(dest), arg: arg}, nil
+	} else {
+		switch instr.InstrLength() {
+		case 1:
+			return &InstructionImplied{opCode: opcode}, nil
+		case 2:
+			return &InstructionByte{opCode: opcode, arg: c.ReadByte(c.PC+1)}, nil
+		case 3:
+			return &InstructionWord{opCode: opcode, arg: c.ReadWord(c.PC+1)}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("OpCode with an invalid length: %s, %d", instr.Name(), instr.InstrLength())
+}
+
+func (c *Core) Tick() error {
 	//c.PC += 1
 	if c.checkStuck {
 		if c.PC == c.lastPC {
@@ -323,7 +405,7 @@ func (c *Core) tick() error {
 }
 
 func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
-	l := instr.InstrLength(c)
+	l := instr.InstrLength()
 	ops := []string{}
 	for i := uint8(0); i < l; i++ {
 		ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
@@ -336,31 +418,9 @@ func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
 		instr.Name(),
 		instr.AddressMeta().Asm(c, oppc), // oppc == OP code PC
 		c.Registers(),
-		c.stackString(),
+		"",
+		//c.stackString(),
 	)
-}
-
-func (c *Core) Instructions() []string {
-	ret := []string{}
-	for _, instr := range instructionList {
-		var op byte
-		switch instr.(type) {
-		case StandardInstruction:
-			si := instr.(StandardInstruction)
-			op = si.OpCode
-		case Branch:
-			br := instr.(Branch)
-			op = br.OpCode
-		case Jump:
-			j := instr.(Jump)
-			op = j.OpCode
-		case ReadModifyWrite:
-			rmw := instr.(ReadModifyWrite)
-			op = rmw.OpCode
-		}
-		ret = append(ret, fmt.Sprintf("$%02X %s %s", op, instr.Name(), instr.AddressMeta().Name))
-	}
-	return ret
 }
 
 func (c *Core) stackString() string {

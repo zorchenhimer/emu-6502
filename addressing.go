@@ -6,8 +6,12 @@ import (
 
 type AddressModeMeta struct {
 	Name    string
+	// TODO: check Asm() for an edge case when swapping banks
 	Asm     func(c *Core, oppc uint16) string
 	Address func(c *Core) (uint16, uint8)
+	Length  int
+
+	TokenAsm func(arg uint16) string
 }
 
 var ADDR_Accumulator = AddressModeMeta{
@@ -18,6 +22,11 @@ var ADDR_Accumulator = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC, 1
 	},
+	Length: 1,
+
+	TokenAsm: func(arg uint16) string {
+		return "A"
+	},
 }
 
 var ADDR_Absolute = AddressModeMeta{
@@ -27,6 +36,11 @@ var ADDR_Absolute = AddressModeMeta{
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC + 1), 3
+	},
+	Length: 3,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%04X", arg)
 	},
 }
 
@@ -42,6 +56,11 @@ var ADDR_AbsoluteX = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.X), 3
 	},
+	Length: 3,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%04X, X", arg)
+	},
 }
 
 var ADDR_AbsoluteY = AddressModeMeta{
@@ -56,6 +75,11 @@ var ADDR_AbsoluteY = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.Y), 3
 	},
+	Length: 3,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%04X, Y", arg)
+	},
 }
 
 var ADDR_Immediate = AddressModeMeta{
@@ -66,6 +90,11 @@ var ADDR_Immediate = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC + 1, 2
 	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%02X", arg)
+	},
 }
 
 var ADDR_Implied = AddressModeMeta{
@@ -75,6 +104,11 @@ var ADDR_Implied = AddressModeMeta{
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC, 1
+	},
+	Length: 1,
+
+	TokenAsm: func(arg uint16) string {
+		return ""
 	},
 }
 
@@ -90,6 +124,11 @@ var ADDR_Indirect = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.ReadWord(c.PC + 1)), 3
 	},
+	Length: 3,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("($%04X)", arg)
+	},
 }
 
 var ADDR_IndirectX = AddressModeMeta{
@@ -103,6 +142,11 @@ var ADDR_IndirectX = AddressModeMeta{
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(uint16(c.ReadByte(c.PC+1) + c.X)), 2
+	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("($%02X), X", uint8(arg))
 	},
 }
 
@@ -118,6 +162,11 @@ var ADDR_IndirectY = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(uint16(c.ReadByte(uint16(c.PC+1)))) + uint16(c.Y), 2
 	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("($%02X, Y)", uint8(arg))
+	},
 }
 
 var ADDR_ZeroPage = AddressModeMeta{
@@ -128,6 +177,11 @@ var ADDR_ZeroPage = AddressModeMeta{
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC + 1)), 2
+	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%02X", uint8(arg))
 	},
 }
 
@@ -143,6 +197,11 @@ var ADDR_ZeroPageX = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC+1) + c.X), 2
 	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%02X, X", uint8(arg))
+	},
 }
 
 var ADDR_ZeroPageY = AddressModeMeta{
@@ -156,6 +215,11 @@ var ADDR_ZeroPageY = AddressModeMeta{
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC+1) + c.Y), 2
+	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%02X, Y", uint8(arg))
 	},
 }
 
@@ -173,5 +237,10 @@ var ADDR_Relative = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		panic("branch Address()")
 		return c.addrRelative(c.PC, c.ReadByte(c.PC+1)), 2
+	},
+	Length: 2,
+
+	TokenAsm: func(arg uint16) string {
+		return fmt.Sprintf("$%04X", arg)
 	},
 }
