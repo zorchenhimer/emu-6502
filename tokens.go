@@ -20,25 +20,30 @@ type Token interface {
 }
 
 type InstructionAny interface {
+	Instruction
 	String() string
 	OpCode() uint8
 }
 
 type InstructionImplied struct {
+	Instruction
 	opCode uint8
 }
 
 type InstructionByte struct {
+	Instruction
 	opCode uint8
 	arg uint8
 }
 
 type InstructionWord struct {
+	Instruction
 	opCode uint8
 	arg uint16
 }
 
 type InstructionBranch struct {
+	Instruction
 	opCode uint8
 	dest uint16
 	arg uint8
@@ -57,6 +62,8 @@ func (i InstructionBranch) OpCode() uint8 { return i.opCode }
 func (i InstructionByte) Arg() uint8 { return i.arg }
 func (i InstructionWord) Arg() uint16 { return i.arg }
 func (i InstructionBranch) Arg() uint8 { return i.arg }
+
+func (i InstructionBranch) Destination() uint16 { return i.dest }
 
 func (i InstructionImplied) String() string {
 	return instructionList[i.opCode].Name()

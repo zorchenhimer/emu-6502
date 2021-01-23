@@ -323,15 +323,15 @@ func (c *Core) Peek() (Token, error) {
 	if isBranch(opcode) {
 		arg := c.ReadByte(c.PC+1)
 		dest := int(c.PC) + int(int8(arg))
-		return &InstructionBranch{opCode: opcode, dest: uint16(dest), arg: arg}, nil
+		return &InstructionBranch{opCode: opcode, dest: uint16(dest), arg: arg, Instruction: instr}, nil
 	} else {
 		switch instr.InstrLength() {
 		case 1:
-			return &InstructionImplied{opCode: opcode}, nil
+			return &InstructionImplied{opCode: opcode, Instruction: instr}, nil
 		case 2:
-			return &InstructionByte{opCode: opcode, arg: c.ReadByte(c.PC+1)}, nil
+			return &InstructionByte{opCode: opcode, arg: c.ReadByte(c.PC+1), Instruction: instr}, nil
 		case 3:
-			return &InstructionWord{opCode: opcode, arg: c.ReadWord(c.PC+1)}, nil
+			return &InstructionWord{opCode: opcode, arg: c.ReadWord(c.PC+1), Instruction: instr}, nil
 		}
 	}
 
