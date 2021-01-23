@@ -9,6 +9,8 @@ import (
 	"github.com/zorchenhimer/emu-6502"
 )
 
+//type OpAnalize func(d *Dissassembly, 
+
 type Disassembly struct {
 	m mappers.Mapper
 	core *emu.Core
@@ -19,7 +21,54 @@ type Disassembly struct {
 	branches map[uint32]interface{} // element added if branch has been seen before
 	jsrs map[uint32]bool // true if JSR has been returned from in a standard way
 
+	labels map[uint32]*LabelMeta
+	ramLabels map[uint16]*RamLabelMeta
+
 	processed int
+}
+
+func New(rom []byte) (*Disassembly, error) {
+	mapper, err := mappers.LoadFromBytes(rom)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Found mapper:", mapper.Name())
+
+	core, err := emu.NewCore(mapper)
+	core.Debug = true
+	if err != nil {
+		return nil, err
+	}
+
+	d := &Disassembly{
+		m: mapper,
+		core: core,
+
+		chunks: []*Chunk{},
+		tokens: make(map[uint32]emu.Token),
+		labels: make(map[uint32]*LabelMeta),
+		ramLabels: make(map[uint16]*RamLabelMeta),
+		branches: make(map[uint32]interface{}),
+		jsrs: make(map[uint32]bool),
+	}
+
+	return d, nil
+}
+
+func (d *Disassembly) AddVector(address uint16) {
+	offset := d.m.Offset(address)
+	d.labels[offset] = &LabelMeta{
+		Address: address,
+		Offset: offset,
+		Type: LT_Vector}
+
+	c := &Chunk{
+		MapperState: d.m.GetState(),
+		CpuState:    d.core.GetState(),
+	}
+
+	c.CpuState.PC = address
+	d.chunks = append(d.chunks, c)
 }
 
 type offsetSort []uint32
@@ -48,41 +97,25 @@ func (d *Disassembly) WriteToFile(filename string) error {
 
 	//for offset, token := range d.tokens {
 	for _, offset := range s {
+		if label, exists := d.labels[offset]; exists {
+			fmt.Fprintf(file, "\n%s:\n", label.Label())
+		}
 		fmt.Fprintf(file, "[0x%08X] %s\n", offset, d.tokens[offset].String())
 	}
 	//return fmt.Errorf("not implemented")
 	return nil
 }
 
-// Listing returns a slice containing all of the instructions in
-// the disassembly.
-//func (d *Disassembly) Listing() []Token {
-//	return nil
-//}
-
-func (d *Disassembly) process(address uint16) error {
-	fmt.Printf("Starting at address %04X\n", address)
-	d.core.HardReset()
-	d.core.PC = address
-	d.branches = make(map[uint32]interface{})
-	d.jsrs = make(map[uint32]bool)
-
-	startChunk := &Chunk{
-		//Address: address,
-		MapperState: d.m.GetState(),
-		CpuState: d.core.GetState(),
+func (d *Disassembly) process() error {
+	if len(d.chunks) == 0 {
+		return fmt.Errorf("No chunks to process!")
 	}
 
-	first := true
-	
-	//for i := 0; i < 100000; i++{
-	for len(d.chunks) != 0 || first {
-		if first {
-			first = false
-			d.processChunk(startChunk)
-			continue
-		}
+	//fmt.Printf("Starting at address %04X\n", address)
+	d.core.HardReset()
+	//d.core.PC = address
 
+	for len(d.chunks) != 0 {
 		fmt.Printf("chunk length: %d\n", len(d.chunks))
 
 		chunk := d.chunks[0]
@@ -93,7 +126,7 @@ func (d *Disassembly) process(address uint16) error {
 		}
 	}
 
-	fmt.Println("No more chunks to process")
+	fmt.Printf("No more chunks to process. Processed %d chunks.\n", d.processed)
 	return nil
 }
 
@@ -103,11 +136,8 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 	d.core.SetState(c.CpuState)
 	d.m.SetState(c.MapperState)
 
-	// local to current process
-	// index is JSR instruction, value is 
-	jstack := &JsrStack{}
-
-	fmt.Printf("\nProcessing chunk starting at 0x%08X\n", d.core.PC)
+	fmt.Printf("\nProcessing chunk starting at 0x%08X\n  FromJsr: %t\n  Address: %04X\n",
+		d.core.PC, c.FromJsr, c.Address)
 
 	for i := 0; i < 10000; i++ {
 		t, err := d.core.Peek()
@@ -115,6 +145,20 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 			return err
 		}
 
+		//f, ok := opFunctions[t.OpCode]
+		//if ok {
+		//	doTick, err := f(t)
+		//}
+
+		//if doTick {
+		//	d.core.Tick()
+		//}
+
+		//d.tokens[off] = t
+		//fmt.Println(">", d.core.LastInstruction())
+
+
+		////
 		if t.Type() == emu.TT_Data {
 			return fmt.Errorf("Found data instead of instruction")
 		}
@@ -124,13 +168,7 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 		}
 
 		ii := t.(emu.InstructionAny)
-		//instr := emu.InstructionList[ii.OpCode()]
-		//raw := d.m.ReadByte(d.core.PC)
 		off := d.m.Offset(d.core.PC)
-
-		//fmt.Printf("[%08X:%04X] %s %s\n",
-		//	off, d.core.PC,
-		//	instr.Name(), instr.AddressMeta().Asm(d.core, d.core.PC))
 
 		if d.core.PC < 0x8000 {
 			fmt.Println("PC in RAM; aborting")
@@ -162,35 +200,63 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 		if ii.OpCode() == emu.OP_JSR {
 			iw, ok := t.(*emu.InstructionWord)
 			if !ok {
+				// Shouldn't ever happen
 				fmt.Printf("%v\n", t)
 				panic("JSR isn't a word instruction?")
 			}
 
-			// followed routine before and it returned back to its calling JSR
-			if ret, hit := d.jsrs[d.m.Offset(iw.Arg())]; hit && ret {
-				// don't follow JSR
-				d.core.PC += 3
-				continue
+			nc := d.newChildChunk(c)
+			nc.CpuState.PC = iw.Arg() // Start new chunk after the jump
+			nc.FromJsr = true
+			nc.Address = d.core.PC+2
+			d.chunks = append(d.chunks, nc)
 
-			// haven't followed routine before
-			} else if !hit {
-				// push return address
-				jstack.Push(&JsrElement{d.m.Offset(d.core.PC+2), d.m.Offset(iw.Arg())})
+			d.labels[d.m.Offset(iw.Arg())] = &LabelMeta{
+				Address: iw.Arg(),
+				Offset: d.m.Offset(iw.Arg()),
+				Type: LT_Jsr,
 			}
+
+			// Skip jump
+			d.core.PC += 3
+
+			fmt.Printf("[JSR] routine at %08X:%04X\n", d.m.Offset(nc.CpuState.PC), nc.CpuState.PC)
+			d.tokens[off] = t
+			continue
+		}
+
+		if ii.OpCode() == emu.OP_JMP_ID {
+			iw, ok := t.(*emu.InstructionWord)
+			if !ok {
+				// Shouldn't ever happen
+				fmt.Printf("%v\n", t)
+				panic("JMP (Implied) isn't a word instruction?")
+			}
+
+			rlm := &RamLabelMeta{
+				Address: iw.Arg(),
+				Type: RLT_Pointer,
+				Used: make(map[uint32]interface{}),
+			}
+
+			rlm.Used[d.m.Offset(d.core.PC)] = nil
+			d.ramLabels[iw.Arg()] = rlm
 		}
 
 		if ii.OpCode() == emu.OP_RTS {
 			fmt.Println("[rts]")
-			val, err := jstack.Pop()
-			if err != nil {
-				fmt.Println("[pop error]")
-				return err
+			if !c.FromJsr {
+				return fmt.Errorf("RTS outside of routine")
 			}
 
-			ret := d.m.Offset(d.core.PeekStackWord())
-			// Does the routine return to its original calling context?
-			d.jsrs[val.RoutineAddress] = (ret == val.CallAddress)
-			fmt.Printf("routine returns to calling: %t\n", (ret == val.CallAddress))
+			ret := d.core.PeekStackWord()
+			if ret != c.Address {
+				fmt.Println("RTS to somewhere unknown; continuing.")
+			} else {
+				fmt.Println("RTS to calling address; routine finished.")
+				// Chunk done
+				return nil
+			}
 		}
 
 		if ii.OpCode() == emu.OP_RTI {
@@ -200,29 +266,35 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 
 		if  _, hit := d.branches[off]; !hit && isBranch(ii.OpCode()) {
 			fmt.Println("[not hit && isBranch]")
-			newCpuState := d.core.GetState()
-			newMapState := d.m.GetState()
+			nc := d.newChildChunk(c)
 
-			fmt.Printf("State %s -> ", flagsToString(newCpuState.Phlags))
+			fmt.Printf("State %s -> ", flagsToString(nc.CpuState.Phlags))
 			switch ii.OpCode() {
 			case emu.OP_BCC, emu.OP_BCS:
-				newCpuState.Phlags ^= emu.FLAG_CARRY
+				nc.CpuState.Phlags ^= emu.FLAG_CARRY
 			case emu.OP_BEQ, emu.OP_BNE:
-				newCpuState.Phlags ^= emu.FLAG_ZERO
+				nc.CpuState.Phlags ^= emu.FLAG_ZERO
 			case emu.OP_BMI, emu.OP_BPL:
-				newCpuState.Phlags = newCpuState.Phlags ^ emu.FLAG_NEGATIVE
+				nc.CpuState.Phlags ^= emu.FLAG_NEGATIVE
 			case emu.OP_BVC, emu.OP_BVS:
-				newCpuState.Phlags ^= emu.FLAG_OVERFLOW
+				nc.CpuState.Phlags ^= emu.FLAG_OVERFLOW
 			}
-			fmt.Printf("%s\n", flagsToString(newCpuState.Phlags))
+			fmt.Printf("%s\n", flagsToString(nc.CpuState.Phlags))
 
-			d.chunks = append(d.chunks, &Chunk{
-				MapperState: newMapState,
-				CpuState:    newCpuState,
-			})
+			d.chunks = append(d.chunks, nc)
+
+			ib, ok := t.(*emu.InstructionBranch)
+			if !ok {
+				panic(fmt.Sprintf("Branch is not InstructionBranch?\n%T", t))
+			}
+
+			d.labels[d.m.Offset(ib.Destination())] = &LabelMeta{
+				Address: ib.Destination(),
+				Offset: d.m.Offset(ib.Destination()),
+				Type: LT_Branch,
+			}
 		}
 
-		//fmt.Printf("%s | %s\n", t.String(), op.Name())//op.AddressMeta().Asm(d.core, d.core.PC))
 		d.tokens[off] = t
 
 		d.core.Tick()
@@ -231,6 +303,20 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 
 	fmt.Println("outside of processChunk() for loop")
 	return nil
+}
+
+func (d *Disassembly) newChildChunk(c *Chunk) *Chunk {
+	nc := &Chunk{
+		MapperState: d.m.GetState(),
+		CpuState:    d.core.GetState(),
+	}
+
+	if c.FromJsr {
+		nc.FromJsr = true
+		nc.Address = d.core.PC+2 // Address expected to return to
+	}
+
+	return nc
 }
 
 func flagsToString(ph uint8) string {

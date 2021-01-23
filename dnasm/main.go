@@ -2,9 +2,6 @@ package dnasm
 
 import (
 	"fmt"
-
-	"github.com/zorchenhimer/emu-6502/mappers"
-	"github.com/zorchenhimer/emu-6502"
 )
 
 const (
@@ -14,31 +11,18 @@ const (
 )
 
 func Disassemble(rom []byte) (*Disassembly, error) {
-	mapper, err := mappers.LoadFromBytes(rom)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("Found mapper:", mapper.Name())
 
-	core, err := emu.NewCore(mapper)
-	core.Debug = true
+	d, err := New(rom)
 	if err != nil {
 		return nil, err
 	}
 
-	d := &Disassembly{
-		m: mapper,
-		core: core,
-		tokens: make(map[uint32]emu.Token),
-		//hits: make(map[uint32]bool),
-	}
-
-	//fmt.Println("[irq]")
-	//vIrq := mapper.ReadWord(VECTOR_IRQ)
-	//fmt.Println("[nmi]")
-	//vNmi := mapper.ReadWord(VECTOR_NMI)
+	fmt.Println("[irq]")
+	vIrq := d.m.ReadWord(VECTOR_IRQ)
+	fmt.Println("[nmi]")
+	vNmi := d.m.ReadWord(VECTOR_NMI)
 	fmt.Println("[reset]")
-	vReset := mapper.ReadWord(VECTOR_RESET)
+	vReset := d.m.ReadWord(VECTOR_RESET)
 
 	//fmt.Println("")
 
@@ -49,16 +33,16 @@ func Disassemble(rom []byte) (*Disassembly, error) {
 	//	vReset, mapper.Offset(VECTOR_RESET),
 	//)
 
-	//irq := true
-	//nmi := true
+	irq := true
+	nmi := true
 
-	//if vIrq == 0x0000 || vIrq < 0x8000 || vIrq == vReset || vIrq == vNmi {
-	//	irq = false
-	//}
+	if vIrq == 0x0000 || vIrq < 0x8000 || vIrq == vReset || vIrq == vNmi {
+		irq = false
+	}
 
-	//if vNmi == 0x0000 || vNmi < 0x8000 || vNmi == vReset {
-	//	nmi = false
-	//}
+	if vNmi == 0x0000 || vNmi < 0x8000 || vNmi == vReset {
+		nmi = false
+	}
 
 	//fmt.Println("\n[NMI]")
 	//if nmi {
@@ -77,9 +61,19 @@ func Disassemble(rom []byte) (*Disassembly, error) {
 
 	//return nil, fmt.Errorf("Stopping before processing RESET vector")
 
-	fmt.Println("\n[RESET]")
-	err = d.process(vReset)
-	fmt.Printf("process error: %v\n", err)
+	//fmt.Println("\n[RESET]")
+	//err = d.process(vReset)
+	//fmt.Printf("process error: %v\n", err)
+
+	d.AddVector(vReset)
+
+	if nmi {
+		d.AddVector(vNmi)
+	}
+
+	if irq {
+		d.AddVector(vIrq)
+	}
 
 	//for offset, _ := range d.tokens {
 	//	fmt.Printf("  %08X\n", offset)
@@ -89,9 +83,9 @@ func Disassemble(rom []byte) (*Disassembly, error) {
 	//	fmt.Printf("> %08X\n", chunk)
 	//}
 
-	fmt.Printf("chunks processed: %d\n", d.processed)
+	//fmt.Printf("chunks processed: %d\n", d.processed)
 
-	return d, nil
+	return d, d.process()
 }
 
 

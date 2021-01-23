@@ -20,7 +20,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("Disassembly successfull")
+	fmt.Println("Disassembly successful")
 
 	err = d.WriteToFile("disassembled.asm")
 	if err != nil {
