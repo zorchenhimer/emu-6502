@@ -25,3 +25,39 @@ func PadWithVectors(rom []byte, nmi, reset, irq uint16) []byte {
 
 	return rom
 }
+
+func FlagsToString(ph uint8) string {
+	sc := "-"
+	sz := "-"
+	si := "-"
+	sd := "-"
+	sv := "-"
+	sn := "-"
+
+	if ph&FLAG_CARRY != 0 {
+		sc = "C"
+	}
+
+	if ph&FLAG_ZERO != 0 {
+		sz = "Z"
+	}
+
+	if ph&FLAG_INTERRUPT != 0 {
+		si = "I"
+	}
+
+	if ph&FLAG_DECIMAL != 0 {
+		sd = "D"
+	}
+
+	if ph&FLAG_OVERFLOW != 0 {
+		sv = "V"
+	}
+
+	if ph&FLAG_NEGATIVE != 0 {
+		sn = "N"
+	}
+
+	return fmt.Sprintf("%s%s--%s%s%s%s", sn, sv, sd, si, sz, sc)
+}
+
