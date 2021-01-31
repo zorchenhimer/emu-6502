@@ -14,13 +14,13 @@ const (
 	LT_Ram
 )
 
-type LabelMeta struct {
+type Label struct {
 	Address uint16
 	Offset uint32
 	Type LabelType
 }
 
-func (lm LabelMeta) Label() string {
+func (lm Label) Label() string {
 	t := "L"
 
 	switch lm.Type {
@@ -46,5 +46,6 @@ type RamLabelMeta struct {
 	Address uint16
 	Type RamLabelType
 
+	// Addresses where this label is used in an instruction.
 	Used map[uint32]interface{}
 }

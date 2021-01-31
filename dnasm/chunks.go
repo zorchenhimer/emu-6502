@@ -9,5 +9,7 @@ type Chunk struct {
 	CpuState emu.CpuState
 	FromJsr bool
 	Address uint16
+
+	FromNode Node
 }
 

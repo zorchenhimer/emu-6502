@@ -21,7 +21,7 @@ type Disassembly struct {
 	branches map[uint32]interface{} // element added if branch has been seen before
 	jsrs map[uint32]bool // true if JSR has been returned from in a standard way
 
-	labels map[uint32]*LabelMeta
+	labels map[uint32]*Label
 	ramLabels map[uint16]*RamLabelMeta
 
 	processed int
@@ -46,7 +46,7 @@ func New(rom []byte) (*Disassembly, error) {
 
 		chunks: []*Chunk{},
 		tokens: make(map[uint32]emu.Token),
-		labels: make(map[uint32]*LabelMeta),
+		labels: make(map[uint32]*Label),
 		ramLabels: make(map[uint16]*RamLabelMeta),
 		branches: make(map[uint32]interface{}),
 		jsrs: make(map[uint32]bool),
@@ -57,7 +57,7 @@ func New(rom []byte) (*Disassembly, error) {
 
 func (d *Disassembly) AddVector(address uint16) {
 	offset := d.m.Offset(address)
-	d.labels[offset] = &LabelMeta{
+	d.labels[offset] = &Label{
 		Address: address,
 		Offset: offset,
 		Type: LT_Vector}
@@ -208,10 +208,10 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 			nc := d.newChildChunk(c)
 			nc.CpuState.PC = iw.Arg() // Start new chunk after the jump
 			nc.FromJsr = true
-			nc.Address = d.core.PC+2
+			nc.Address = d.core.PC+2 // expected return address
 			d.chunks = append(d.chunks, nc)
 
-			d.labels[d.m.Offset(iw.Arg())] = &LabelMeta{
+			d.labels[d.m.Offset(iw.Arg())] = &Label{
 				Address: iw.Arg(),
 				Offset: d.m.Offset(iw.Arg()),
 				Type: LT_Jsr,
@@ -288,7 +288,7 @@ func (d *Disassembly) processChunk(c *Chunk) error {
 				panic(fmt.Sprintf("Branch is not InstructionBranch?\n%T", t))
 			}
 
-			d.labels[d.m.Offset(ib.Destination())] = &LabelMeta{
+			d.labels[d.m.Offset(ib.Destination())] = &Label{
 				Address: ib.Destination(),
 				Offset: d.m.Offset(ib.Destination()),
 				Type: LT_Branch,
