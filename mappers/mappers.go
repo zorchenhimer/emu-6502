@@ -20,23 +20,42 @@ func registerMapper(id int, f mapperNewFunc) {
 }
 
 type Mapper interface {
+	// ReadByte reads a single byte at the given address with the current
+	// mapper configuration.  To read from unmapped banks, the mapper needs
+	// to be written to to map those banks into CPU address space.
 	ReadByte(address uint16) uint8
-	WriteByte(address uint16, value uint8)
+
+	// ReadWord does the same thing as ReadByte, but instead returns two
+	// consecutive bytes as a uint16.
 	ReadWord(address uint16) uint16
 
-	// Returns the offset in the ROM file given
-	// the current bank configuration.
+	// WriteByte writes a single byte to the mapper.  This is the method
+	// in which mapped banks can be changed.  Note that each mapper has
+	// their own specific "API" for this.
+	WriteByte(address uint16, value uint8)
+
+	// Returns the offset in the PRG ROM given the current bank
+	// configuration.  Note that 16 needs to be added for raw
+	// file offset to account for the header.
 	Offset(address uint16) uint32
 
 	// GetState returns a mapper-specific snapshot of the internals of its state.
 	GetState() interface{}
+
 	// SetState clobbers all current mapper settings with the provided state.
 	SetState(data interface{}) error
 
-	// Debugging/Info
+	// Name returns the name of the mapper.  The mapper number will not be included here.
 	Name() string
+
+	// State returns the current state of the mapper.  The format is mapper-specific
+	// and will differ between mappers.
 	State() string
 
+	// Wipes all CPU RAM (0x0000-0x07FFF inclusive) and PRG
+	// Work RAM (typically 0x6000-0x7FFF).  Addresses cleared
+	// in cartridge space (ie 0x4020-0xFFFF) are mapper
+	// dependent may vary depending on the mapper used.
 	ClearRam()
 }
 
