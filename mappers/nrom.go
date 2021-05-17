@@ -125,8 +125,10 @@ func (nr *NROM) ReadByte(address uint16) uint8 {
 }
 
 func (nr *NROM) WriteByte(address uint16, value uint8) {
-	if nr.hasRam && 0x6000 <= address && address < 0x8000 {
-		nr.ram[address - 0x6000] = value
+	if address < 0x2000 {
+		nr.ram[address % 0x0800] = value
+	} else if nr.hasRam && 0x6000 <= address && address < 0x8000 {
+		nr.wram[address - 0x6000] = value
 	}
 }
 
