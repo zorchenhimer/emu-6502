@@ -178,6 +178,8 @@ func (c *Core) RunRoutine(address uint16) error {
 		c.Debug = true
 	}
 
+	c.pushAddress(address)
+
 	//start := time.Now()
 	//defer func() {
 	//	fmt.Printf("time: %s\nticks: %d\n",
@@ -185,8 +187,6 @@ func (c *Core) RunRoutine(address uint16) error {
 	//		c.ticks)
 	//}()
 
-	// Start value of stack pointer
-	//sp := c.SP
 	c.routineDepth = 0
 	c.runRoutine = true
 	c.PC = address
