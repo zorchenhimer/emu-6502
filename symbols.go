@@ -11,13 +11,7 @@ import (
 	"strings"
 )
 
-//type nopeSymbols struct {
-//	labels []label
-//	constants []constant
-//}
-
-//type symbolRecord map[string]string
-type symbolRecord struct {
+type SymbolRecord struct {
 	Name string
 	Size uint16 // size of the data (the '.res #' value)
 	AddrSize int // size of the address itself.  either zero page or absolute
@@ -40,12 +34,6 @@ type fileRecord struct {
 
 type Symbols struct {
 	Version string
-	//file []symbolRecord
-	//line []symbolRecord
-	//mod []symbolRecord
-	//seg []symbolRecord
-	//span []symbolRecord
-	//scope []symbolRecord
 
 	files map[int]*fileRecord
 	lines map[int]*lineRecord
@@ -54,10 +42,22 @@ type Symbols struct {
 	// "SomeLabel"
 	// "SomeScope::SomeLabel"
 	// "ParentLabel@localLabel"
-	sym map[string]*symbolRecord
+	sym map[string]*SymbolRecord
 
 	// Each address may have more than one symbol attached to it
-	symAddr map[uint16][]*symbolRecord
+	symAddr map[uint16][]*SymbolRecord
+
+	segments map[int]*segmentRecord
+}
+
+type segmentRecord struct {
+	Id int
+	Name string
+	Start int
+	Size uint16
+	Type string
+	OutputName string
+	OutputOffset int
 }
 
 func (s *Symbols) AllLabels() []string {
@@ -87,12 +87,21 @@ func (s *Symbols) LabelsAt(address uint16) ([]string) {
 // GetAddress("SomeScope::SomeLabel")
 // GetAddress("ParentLabel@localLabel")
 func (s *Symbols) GetAddress(name string) (uint16, error) {
+	sym, err := s.GetSymbol(name)
+	if err != nil {
+		return 0, err
+	}
+	return sym.Value, nil
+}
+
+// Returns the full symbol object
+func (s *Symbols) GetSymbol(name string) (*SymbolRecord, error) {
 	val, ok := s.sym[name]
 	if ok {
-		return val.Value, nil
+		return val, nil
 	}
 
-	return 0, fmt.Errorf("Address symbol %q does not exist", name)
+	return nil, fmt.Errorf("Address symbol %q does not exist", name)
 }
 
 type lineRecord struct {
@@ -117,8 +126,8 @@ func NewSymbols(filename string) (*Symbols, error) {
 	lines := map[int]map[string]string{}
 
 	sym := &Symbols{
-		sym: map[string]*symbolRecord{},
-		symAddr: map[uint16][]*symbolRecord{},
+		sym: map[string]*SymbolRecord{},
+		symAddr: map[uint16][]*SymbolRecord{},
 		Version: "",
 		files: map[int]*fileRecord{},
 		lines: map[int]*lineRecord{},
@@ -146,12 +155,6 @@ func NewSymbols(filename string) (*Symbols, error) {
 
 		t := line[:idx]
 		vals := strings.Split(line[idx+1:], ",")
-
-		switch t {
-		case "scope", "sym", "version", "file", "line":
-		default:
-			continue
-		}
 
 		m := map[string]string{}
 		for _, kv := range vals {
@@ -185,6 +188,42 @@ func NewSymbols(filename string) (*Symbols, error) {
 
 		case "version":
 			sym.Version = m["major"] + "." + m["minor"]
+
+		case "seg":
+			id, err := strconv.Atoi(m["id"])
+			if err != nil {
+				return nil, fmt.Errorf("Unable to parse id value for segment %q: %w", m["id"], err)
+			}
+
+			start, err := strconv.ParseInt(m["start"], 0, 32)
+			if err != nil {
+				return nil, fmt.Errorf("Unable to parse start value for segment %q: %w", m["start"], err)
+			}
+
+			size, err := strconv.ParseUint(m["size"], 0, 16)
+			if err != nil {
+				return nil, fmt.Errorf("Unable to parse size value for segment %q: %w", m["size"], err)
+			}
+
+			seg := &segmentRecord{
+				Id: id,
+				Name: m["name"],
+				Start: int(start),
+				Size: uint16(size),
+				Type: m["type"],
+			}
+
+			var oname string
+			if val, ok := m["oname"]; ok {
+				oname = val
+				offset, err := strconv.Atoi(m["ooffs"])
+				if err != nil {
+					return nil, fmt.Errorf("Unable to parse ooffs value for segment %q: %w", m["ooffs"], err)
+				}
+
+				seg.OutputName = oname
+				seg.OutputOffset = offset
+			}
 
 		case "file":
 			mtime, err := strconv.ParseInt(m["mtime"], 0, 32)
@@ -326,7 +365,7 @@ func NewSymbols(filename string) (*Symbols, error) {
 			return nil, fmt.Errorf("No line with id %d", definedId)
 		}
 
-		record := &symbolRecord{
+		record := &SymbolRecord{
 			Name: name,
 			AddrSize: addrSize,
 			Size: size,
@@ -354,7 +393,7 @@ func NewSymbols(filename string) (*Symbols, error) {
 		// Add a reference for every address this label occupies
 		for i := uint16(0); i < size; i++ {
 			if _, ok := sym.symAddr[uint16(addrValue)+i]; !ok {
-				sym.symAddr[uint16(addrValue)+i] = []*symbolRecord{}
+				sym.symAddr[uint16(addrValue)+i] = []*SymbolRecord{}
 			}
 
 			sym.symAddr[uint16(addrValue)+i] = append(sym.symAddr[uint16(addrValue)+i], record)
