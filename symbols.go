@@ -104,6 +104,30 @@ func (s *Symbols) GetSymbol(name string) (*SymbolRecord, error) {
 	return nil, fmt.Errorf("Address symbol %q does not exist", name)
 }
 
+// Get the last defined label before the given address
+func (s *Symbols) GetLastLabel(address uint16) string {
+	labelList := s.LabelsAt(address)
+	if len(labelList) > 0 {
+		return fmt.Sprintf("%s ($%04X)", labelList[0], address)
+	}
+
+	var last *SymbolRecord
+	for addr, sym := range s.symAddr {
+		if addr > address {
+			continue
+		}
+
+		if last == nil || last.Value < addr {
+			last = sym[0]
+		}
+	}
+
+	if last != nil {
+		return fmt.Sprintf("%s ($%04X)", last.Name, last.Value)
+	}
+	return "<none>"
+}
+
 type lineRecord struct {
 	Id int
 	File *fileRecord
