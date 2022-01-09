@@ -179,14 +179,6 @@ func (c *Core) RunRoutine(address uint16) error {
 	}
 
 	c.pushAddress(address)
-
-	//start := time.Now()
-	//defer func() {
-	//	fmt.Printf("time: %s\nticks: %d\n",
-	//		time.Now().Sub(start),
-	//		c.ticks)
-	//}()
-
 	c.routineDepth = 0
 	c.runRoutine = true
 	c.PC = address
