@@ -29,7 +29,7 @@ Fire an NMI at 60hz?  This could allow synchronizing and timing things with the
 host system a bit easier.  Should probably be a configuration option (either
 command line, register, or both).
 
-### Keyboard 'API'
+### Keyboard 'API' (unimplemented)
 
 - Lock/read (a-la NES controllers)
 - Interrupt/status register based system
@@ -61,13 +61,16 @@ Registers:
 
 ### Memory mapping / Bank Switching
 
-Probably only two schemes: Full 32k banks or one fixed bank at $C000 and a
-swapple bank of 16k starting at $8000.
+~~Probably only two schemes: Full 32k banks or one fixed bank at $C000 and a
+swapple bank of 16k starting at $8000.~~
 
-Simple swapping mechanism: write the bank number to a register (eg. no shifting
-like MMC1).
+~~Simple swapping mechanism: write the bank number to a register (eg. no shifting
+like MMC1).~~
 
-### Filesystem IO & Raw File Access
+NES mapper support is fully implemented.  Currently, only three mappers are
+written: FullRW, MMC1, and NROM.
+
+### Filesystem IO & Raw File Access (unimplemented)
 
 Open file by writing full path to a page between $4000 and $5FFF.
 Once opened, fill work RAM with file's contents.  If more than 8k, allow bank
