@@ -37,6 +37,8 @@ type Mapper interface {
 	Name() string
 	State() string
 
+	DumpFullStack() string
+
 	ClearRam()
 }
 

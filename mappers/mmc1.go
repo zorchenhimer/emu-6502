@@ -3,6 +3,7 @@ package mappers
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 func init() {
@@ -248,4 +249,12 @@ func (m *MMC1) ClearRam() {
 	if m.hasRam {
 		m.wram = [0x2000]byte{}
 	}
+}
+
+func (m *MMC1) DumpFullStack() string {
+	st := []string{}
+	for i := 0; i < 256; i++ {
+		st = append(st, fmt.Sprintf("$%02X", m.ram[0x100+i]))
+	}
+	return strings.Join(st, " ")
 }

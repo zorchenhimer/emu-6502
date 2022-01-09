@@ -55,3 +55,7 @@ func (rw *FullRW) WriteByte(address uint16, value uint8) {
 }
 
 func (rw *FullRW) ClearRam() {}
+
+func (rw *FullRW) DumpFullStack() string {
+	return "FullRW DumpFullStack() not implemented"
+}
