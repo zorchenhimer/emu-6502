@@ -38,14 +38,20 @@ const (
 )
 
 func main() {
-	rom, err := ioutil.ReadFile("breakout.nes")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// TODO: read NES header
+	//rom, err := ioutil.ReadFile("breakout.nes")
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
+	//// TODO: read NES header
 
-	mapper, err := mappers.NewMMC1(rom[16:len(rom)], true)
+	//mapper, err := mappers.NewMMC1(rom[16:len(rom)], true)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return
+	//}
+
+	mapper, err := mappers.LoadFromFile("breakout.nes")
 	if err != nil {
 		fmt.Println(err)
 		return
