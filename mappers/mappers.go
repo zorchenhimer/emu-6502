@@ -1,6 +1,7 @@
 package mappers
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -60,6 +61,11 @@ func LoadFromFile(filename string) (Mapper, error) {
 
 // LoadFromBytes loads a rom and returns it as a mapper.  The Mapper type is auto-detected.
 func LoadFromBytes(raw []byte) (Mapper, error) {
+	// Handle studybox files
+	if bytes.Equal(raw[:4], []byte("STBX")) {
+		return NewStudyBox(raw, true)
+	}
+
 	header, err := ines.ParseHeader(raw)
 	if err != nil {
 		return nil, err

@@ -2,11 +2,11 @@ package mappers
 
 import (
 	"io"
-	"bytes"
+	//"bytes"
 	"fmt"
-	"os"
+	//"os"
 	"strings"
-	"encoding/binary"
+	//"encoding/binary"
 
 	sbox "github.com/zorchenhimer/go-nes/studybox"
 )
@@ -35,134 +35,102 @@ type StudyBox struct {
 	tapePages [][]byte
 	currentPage int
 
-	tape *sbox.Studybox
+	//tape *sbox.StudyBox
+	tape [][]byte
+	tapePage int
+	tapeOffset int
+
+	readRegisters map[uint16]sbReadRegisterFunction
+	writeRegisters map[uint16]sbWriteRegisterFunction
 }
 
 type sbReadRegisterFunction func() uint8
 type sbWriteRegisterFunction func(value uint8)
 
-var sbReadRegisters map[uint16]sbReadRegisterFunction
-var sbWriteRegisters map[uint16]sbWriteRegisterFunction
+func (sb *StudyBox) PageCount() int {
+	return len(sb.tape)
+}
 
 func NewStudyBox(raw []byte, hasRam bool) (Mapper, error) {
-	return &StudyBox{
+	sb := &StudyBox{
 		rom: raw,
 		//mainRam: [0x0800]byte{},
 		//ramA: [0x8000]byte{},
 		//ramB: [0x8000]byte{},
-	}, nil
+		writeRegisters: map[uint16]sbWriteRegisterFunction{},
+		readRegisters: map[uint16]sbReadRegisterFunction{},
+	}
+
+	sb.writeRegisters[0x4200] = sb.write4200
+	sb.writeRegisters[0x4201] = sb.write4201
+
+	sb.readRegisters[0x4200] = sb.read4200
+	sb.readRegisters[0x4201] = sb.read4201
+
+	return sb, nil
 }
 
 // Read a byte from tape
-func (sb *StudyBox) sbRead4200() uint8 {
-	//if sb.tape == nil {
-	//	panic("[sbRead4200()] No tape is opened")
-	//}
+func (sb *StudyBox) read4200() uint8 {
+	if sb.tape == nil {
+		panic("[read4200()] No tape is opened")
+	}
+	return 0
+}
+
+// Tape drive status stuff
+func (sb *StudyBox) read4201() uint8 {
+	// TODO
 	return 0
 }
 
 // Set RAM bank
-func (sb *StudyBox) sbWrite4200(value uint8) {
+func (sb *StudyBox) write4200(value uint8) {
 	sb.RamABank = value & 0x03
 	sb.RamBBank = value & 0xC0
 	return
 }
 
 // Set ROM bank
-func (sb *StudyBox) sbWrite4201(value uint8) {
+func (sb *StudyBox) write4201(value uint8) {
 	sb.PrgBank = value & 0x0F
 }
 
-// Tape drive status stuff
-func (sb *StudyBox) sbRead4201() uint8 {
-	// TODO
-	return 0
+func (sb *StudyBox) LoadTape(reader io.Reader) error {
+	tape, err := sbox.Read(reader)
+	if err != nil {
+		return err
+	}
+	//sb.tape = tape
+	sb.readTape(tape)
+	return nil
 }
 
 // Open a .studybox tape data file
-func (sb *StudyBox) OpenTape(filename string) error {
-
-	tape, err := os.Open(filename)
+func (sb *StudyBox) LoadTapeFile(filename string) error {
+	tape, err := sbox.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("Unable to open studybox tape data file: %w", err)
-	}
-	defer tape.Close()
-
-	sb.tapePages = [][]byte{}
-	buf := make([]byte, 4)
-	if _, err = tape.Read(buf); err != nil {
 		return err
 	}
-
-	if !bytes.Equal(buf, []byte("STBX")) {
-		return fmt.Errorf("Not a studybox file")
-	}
-
-	buf[0] = 0
-	buf[1] = 0
-	buf[2] = 0
-	buf[3] = 0
-
-	lenBin := make([]byte, 4)
-
-	for err == nil {
-		// read packet type
-		_, err = tape.Read(buf)
-		if err != nil {
-			break
-		}
-
-		_, err = tape.Read(lenBin)
-		if err != nil {
-			break
-		}
-		length := int64(binary.LittleEndian.Uint32(lenBin))
-
-		if bytes.Equal(buf, []byte("PAGE")) {
-			// decode the page
-			data := make([]byte, length)
-
-			// Skip past Audio offset lead in length and audio offset data length
-			_, err = tape.Seek(8, io.SeekCurrent)
-			if err != nil {
-				if err == io.EOF {
-					err = fmt.Errorf("premature after PAGE: %w", err)
-				}
-				break
-			}
-
-			n, err := tape.Read(data)
-			if err != nil {
-				if err == io.EOF && n != int(length) {
-					err = fmt.Errorf("not enough data read from tape.  expected %d read %d", length, n)
-				} else if err != io.EOF {
-					break
-				}
-			}
-
-			sb.tapePages = append(sb.tapePages, data)
-
-		} else if bytes.Equal(buf, []byte("AUDI")) {
-			// Skip this packet
-			_, err = tape.Seek(length, io.SeekCurrent)
-			if err == io.EOF {
-				err = fmt.Errorf("premature after AUDI: %w", err)
-			}
-		} else {
-			return fmt.Errorf("Unknown packet type: %s", buf)
-		}
-	}
-
-	if err != io.EOF {
-		return err
-	}
-
+	//sb.tape = tape
+	sb.readTape(tape)
 	return nil
+}
+
+func (sb *StudyBox) readTape(t *sbox.StudyBox) {
+	sb.tape = [][]byte{}
+	for _, page := range t.Data.Pages {
+		pg := []byte{}
+		for _, packet := range page.Packets {
+			pg = append(pg, packet.RawBytes()...)
+		}
+		sb.tape = append(sb.tape, pg)
+	}
 }
 
 func (sb *StudyBox) ReadByte(address uint16) uint8 {
 	// Handle registers first
-	if reg, ok := sbReadRegisters[address]; ok {
+	if reg, ok := sb.readRegisters[address]; ok {
 		return reg()
 	}
 
@@ -202,7 +170,7 @@ func (sb *StudyBox) ReadByte(address uint16) uint8 {
 }
 
 func (sb *StudyBox) WriteByte(address uint16, value uint8) {
-	if reg, ok := sbWriteRegisters[address]; ok {
+	if reg, ok := sb.writeRegisters[address]; ok {
 		reg(value)
 		return
 	}

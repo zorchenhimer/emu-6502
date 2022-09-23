@@ -1,3 +1,11 @@
+github.com/alexflint/go-arg v1.4.2 h1:lDWZAXxpAnZUq4qwb86p/3rIJJ2Li81EoMbTMujhVa0=
+github.com/alexflint/go-arg v1.4.2/go.mod h1:9iRbDxne7LcR/GSvEr7ma++GLpdIU1zrghf2y2768kM=
+github.com/alexflint/go-scalar v1.0.0/go.mod h1:GpHzbCOZXEKMEcygYQ5n/aa4Aq84zbxjy3MxYW0gjYw=
+github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/mitchellh/go-wordwrap v1.0.0/go.mod h1:ZXFpozHsX6DPmq2I0TCekCxypsnAUbP2oI0UX1GXzOo=
+github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b h1:0dYZvX3IHhdXp7An6gXZzYIXdqHammonKDqtjbNDjTA=
 github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b/go.mod h1:r3Inhjt3LXORPy+p5FgbujlGhXH1DqZxJHEOl46x73Q=
+github.com/zorchenhimer/go-nes v0.0.0-20220529205058-c34ea252b439 h1:GqK02Av8Zz+9ekEwJMv2PuOBxP6KTjdpKOWVvLMo8UI=
+github.com/zorchenhimer/go-nes v0.0.0-20220529205058-c34ea252b439/go.mod h1:dbtu/ZR2HAAa2I+20RHa2WF5lCxEVw6oO5TTDbat9tY=
