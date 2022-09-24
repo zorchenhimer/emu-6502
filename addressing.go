@@ -6,13 +6,17 @@ import (
 
 type AddressModeMeta struct {
 	Name    string
-	Asm     func(c *Core, oppc uint16) string
-	Address func(c *Core) (uint16, uint8)
+	Asm      func(c *Core, oppc uint16) string
+	CleanAsm func(c *Core, oppc uint16) string
+	Address  func(c *Core) (uint16, uint8)
 }
 
 var ADDR_Accumulator = AddressModeMeta{
 	Name: "Accumulator",
 	Asm: func(c *Core, oppc uint16) string {
+		return "A"
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
 		return "A"
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -23,6 +27,9 @@ var ADDR_Accumulator = AddressModeMeta{
 var ADDR_Absolute = AddressModeMeta{
 	Name: "Absolute",
 	Asm: func(c *Core, oppc uint16) string {
+		return fmt.Sprintf("$%04X", c.ReadWord(oppc+1))
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
 		return fmt.Sprintf("$%04X", c.ReadWord(oppc+1))
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -39,6 +46,12 @@ var ADDR_AbsoluteX = AddressModeMeta{
 			value+uint16(c.X),
 		)
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadWord(oppc + 1)
+		return fmt.Sprintf("$%04X, X",
+			value,
+		)
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.X), 3
 	},
@@ -53,6 +66,12 @@ var ADDR_AbsoluteY = AddressModeMeta{
 			value+uint16(c.Y),
 		)
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadWord(oppc + 1)
+		return fmt.Sprintf("$%04X, Y",
+			value,
+		)
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.Y), 3
 	},
@@ -63,6 +82,9 @@ var ADDR_Immediate = AddressModeMeta{
 	Asm: func(c *Core, oppc uint16) string {
 		return fmt.Sprintf("#$%02X", c.ReadByte(oppc+1))
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		return fmt.Sprintf("#$%02X", c.ReadByte(oppc+1))
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC + 1, 2
 	},
@@ -71,6 +93,9 @@ var ADDR_Immediate = AddressModeMeta{
 var ADDR_Implied = AddressModeMeta{
 	Name: "Implied",
 	Asm: func(c *Core, oppc uint16) string {
+		return ""
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
 		return ""
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -87,6 +112,12 @@ var ADDR_Indirect = AddressModeMeta{
 			c.ReadWord(value),
 		)
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadWord(oppc + 1)
+		return fmt.Sprintf("($%04X)",
+			value,
+		)
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.ReadWord(c.PC + 1)), 3
 	},
@@ -99,6 +130,12 @@ var ADDR_IndirectX = AddressModeMeta{
 		return fmt.Sprintf("($%02X), X @ $%04X",
 			value,
 			c.ReadWord(uint16(value+c.X)),
+		)
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadByte(oppc + 1)
+		return fmt.Sprintf("($%02X), X",
+			value,
 		)
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -115,6 +152,12 @@ var ADDR_IndirectY = AddressModeMeta{
 			c.ReadWord(uint16(value))+uint16(c.Y),
 		)
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadByte(oppc + 1)
+		return fmt.Sprintf("($%02X, Y)",
+			value,
+		)
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(uint16(c.ReadByte(uint16(c.PC+1)))) + uint16(c.Y), 2
 	},
@@ -126,6 +169,10 @@ var ADDR_ZeroPage = AddressModeMeta{
 		value := c.ReadByte(oppc + 1)
 		return fmt.Sprintf("$%02X = %02X", value, c.ReadByte(uint16(value)))
 	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadByte(oppc + 1)
+		return fmt.Sprintf("$%02X", value)
+	},
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC + 1)), 2
 	},
@@ -135,9 +182,15 @@ var ADDR_ZeroPageX = AddressModeMeta{
 	Name: "ZeroPage, X",
 	Asm: func(c *Core, oppc uint16) string {
 		value := c.ReadByte(oppc + 1)
-		return fmt.Sprintf("$%02X, X   @ $%04X",
+		return fmt.Sprintf("$%02X, X @ $%04X",
 			value,
 			uint16(value+c.X),
+		)
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadByte(oppc + 1)
+		return fmt.Sprintf("$%02X, X",
+			value,
 		)
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -149,9 +202,15 @@ var ADDR_ZeroPageY = AddressModeMeta{
 	Name: "ZeroPage, Y",
 	Asm: func(c *Core, oppc uint16) string {
 		value := c.ReadByte(oppc + 1)
-		return fmt.Sprintf("$%02X, Y   @ $%04X",
+		return fmt.Sprintf("$%02X, Y @ $%04X",
 			value,
 			uint16(value+c.Y),
+		)
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.ReadByte(oppc + 1)
+		return fmt.Sprintf("$%02X, Y",
+			value,
 		)
 	},
 	Address: func(c *Core) (uint16, uint8) {
@@ -169,6 +228,10 @@ var ADDR_Relative = AddressModeMeta{
 			num *= -1
 		}
 		return fmt.Sprintf("$%02X   (%d)", value, num)
+	},
+	CleanAsm: func(c *Core, oppc uint16) string {
+		value := c.addrRelative(oppc, c.ReadByte(oppc+1))
+		return fmt.Sprintf("$%02X", value)
 	},
 	Address: func(c *Core) (uint16, uint8) {
 		panic("branch Address()")

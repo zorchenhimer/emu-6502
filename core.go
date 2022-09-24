@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sort"
 	"time"
 
 	"github.com/zorchenhimer/emu-6502/mappers"
@@ -70,7 +71,18 @@ type Core struct {
 
 	EnableCDL bool
 	//cdl *cdlData
+
+	visited map[uint32]string
+	destinations []uint
+	cdl map[uint32]int
 }
+
+const (
+	cdl_Unknown int = 0x00
+	cdl_Code    int = 0x01
+	cdl_Data    int = 0x02
+	cdl_Label   int = 0x04
+)
 
 func NewCore(rom mappers.Mapper) (*Core, error) {
 	c := &Core{
@@ -88,6 +100,9 @@ func NewCore(rom mappers.Mapper) (*Core, error) {
 		history:   [HistoryLength]string{},
 		//nmiTicker: time.NewTicker(nmiFrequency),
 		Breakpoints: &Breakpoints{},
+
+		visited: make(map[uint32]string),
+		cdl:     make(map[uint32]int),
 	}
 
 	c.PC = c.ReadWord(VECTOR_RESET)
@@ -183,11 +198,26 @@ func (c *Core) RunRoutine(address uint16) error {
 	c.runRoutine = true
 	c.PC = address
 
+	limit := false
+	if c.InstructionLimit > 0 {
+		limit = true
+	}
+
 	var err error
 	for c.routineDepth > -1 && !c.stop {
 		err = c.tick()
 		if err != nil {
 			return err
+		}
+
+		if limit {
+			c.InstructionLimit -= 1
+			if c.InstructionLimit <= 0 {
+				if c.testing {
+					return fmt.Errorf("Instruction limit hit")
+				}
+				c.stop = true
+			}
 		}
 	}
 
@@ -217,7 +247,7 @@ func (c *Core) dumpHistory() {
 
 func (c *Core) Halt() {
 	c.stop = true
-	fmt.Println("CPU Halt()'d")
+	//fmt.Println("CPU Halt()'d")
 }
 
 func (c *Core) HardReset() {
@@ -297,6 +327,17 @@ func (c *Core) tick() error {
 	c.ticks++
 	instr.Execute(c)
 
+	if c.EnableCDL && c.PC >= 0x8000 {
+		l := uint16(instr.InstrLength(c))
+		bin := []string{}
+		for i := uint16(0); i < l; i++ {
+			bin = append(bin, fmt.Sprintf("%02X", c.memory.ReadByte(oppc+i)))
+			c.cdl[c.memory.Offset(oppc+i)] |= cdl_Code
+		}
+
+		c.visited[c.memory.Offset(oppc)] = instr.Name() +" "+ instr.AddressMeta().CleanAsm(c, oppc) +" ; "+ strings.Join(bin, " ")
+	}
+
 	if c.Debug {
 		dbgLine := c.HistoryString(oppc, instr)
 
@@ -308,6 +349,50 @@ func (c *Core) tick() error {
 
 		if c.DebugFile != nil {
 			fmt.Fprintln(c.DebugFile, dbgLine)
+		}
+	}
+
+	return nil
+}
+
+func (c *Core) WriteCdl(writer io.Writer) error {
+	// Find the max address, make a slice that size, fill in all the data
+	// in that slice, then write said slice to the io.Writer.
+	//
+	// This will sort the data correctly and pad it with 0x00 where we do not
+	// have any data.
+
+	max := uint32(0)
+	for addr, _ := range c.cdl {
+		if addr > max {
+			max = addr
+		}
+	}
+
+	vals := make([]byte, max)
+
+	for addr, val := range c.cdl {
+		vals[int(addr)] = byte(val)
+	}
+
+	_, err := writer.Write(vals)
+	return err
+}
+
+func (c *Core) WriteVisited(writer io.Writer) error {
+	addrs := []int{}
+
+	for addr, _ := range c.visited {
+		addrs = append(addrs, int(addr))
+	}
+
+	sort.Ints(addrs)
+
+	for _, addr := range addrs {
+		//_, err := fmt.Fprintln(writer, "%s ; %04X\n", c.visited[uint32(addr)], addr)
+		_, err := fmt.Fprintf(writer, "[$%04X:%06d] %s\n", addr, addr, c.visited[uint32(addr)])
+		if err != nil {
+			return err
 		}
 	}
 
