@@ -20,6 +20,7 @@ import (
 const (
 	// Routine addresses
 	LoadChildMap uint16 = 0xCB23
+	LoadMap uint16 = 0xCE58
 	CheckBrickCollide uint16 = 0x8C04
 	CheckPointCollide uint16 = 0x8E66
 
@@ -139,6 +140,7 @@ func main() {
 
 				for D := uint8(0); D < 4; D++ {
 					core.WriteByte(BallDirection, D)
+					err = core.RunRoutine(
 					err = core.RunRoutine(CheckPointCollide)
 					if err != nil {
 						fmt.Println(err)

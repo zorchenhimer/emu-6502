@@ -10,7 +10,7 @@ type Instruction interface {
 	Execute(c *Core)
 	Name() string
 	InstrLength(c *Core) uint8
-	AddressMeta() AddressModeMeta
+	AddressMeta() *AddressModeMeta
 }
 
 var instructionList = map[byte]Instruction{
@@ -810,7 +810,7 @@ type DebugInstruction struct {
 	Exec func(c *Core, i Instruction)
 }
 
-func (di DebugInstruction) AddressMeta() AddressModeMeta {
+func (di DebugInstruction) AddressMeta() *AddressModeMeta {
 	return ADDR_Implied
 }
 
@@ -832,13 +832,13 @@ func instr_DBG(c *Core, i Instruction) {
 }
 
 type StandardInstruction struct {
-	AddressMode AddressModeMeta
+	AddressMode *AddressModeMeta
 	OpCode      byte
 	Instruction string
 	Exec        ExecFunc
 }
 
-func (i StandardInstruction) AddressMeta() AddressModeMeta {
+func (i StandardInstruction) AddressMeta() *AddressModeMeta {
 	return i.AddressMode
 }
 
@@ -1050,7 +1050,7 @@ type Accumulator struct {
 	Exec        func(c *Core, value uint8) uint8
 }
 
-func (a Accumulator) AddressMeta() AddressModeMeta {
+func (a Accumulator) AddressMeta() *AddressModeMeta {
 	return ADDR_Accumulator
 }
 
@@ -1070,11 +1070,11 @@ func (a Accumulator) InstrLength(c *Core) uint8 {
 type ReadModifyWrite struct {
 	OpCode      byte
 	Instruction string
-	AddressMode AddressModeMeta
+	AddressMode *AddressModeMeta
 	Exec        func(c *Core, value uint8) uint8
 }
 
-func (rmw ReadModifyWrite) AddressMeta() AddressModeMeta {
+func (rmw ReadModifyWrite) AddressMeta() *AddressModeMeta {
 	return rmw.AddressMode
 }
 
@@ -1134,7 +1134,7 @@ type Branch struct {
 	Set         bool
 }
 
-func (b Branch) AddressMeta() AddressModeMeta {
+func (b Branch) AddressMeta() *AddressModeMeta {
 	return ADDR_Relative
 }
 
@@ -1163,7 +1163,7 @@ func (b Branch) InstrLength(c *Core) uint8 {
 type Jump struct {
 	OpCode      byte
 	Instruction string
-	AddressMode AddressModeMeta
+	AddressMode *AddressModeMeta
 	Exec        func(c *Core, address uint16) uint16
 }
 
@@ -1181,7 +1181,7 @@ func (j Jump) InstrLength(c *Core) uint8 {
 	return size
 }
 
-func (j Jump) AddressMeta() AddressModeMeta {
+func (j Jump) AddressMeta() *AddressModeMeta {
 	return j.AddressMode
 }
 

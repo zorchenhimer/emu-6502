@@ -27,12 +27,18 @@ type Mapper interface {
 
 	// Returns the offset in the ROM file given
 	// the current bank configuration.
-	Offset(address uint16) uint32
+	// If the address is not in ROM space, the original address is returned, as
+	// well as False.  If the address is in ROM space, the real offset is
+	// returned with True.
+	Offset(address uint16) (uint32, bool)
+
+	// Given the current mapper state, is the address in question ROM or RAM?
+	IsRom(address uint16) bool
 
 	// GetState returns a mapper-specific snapshot of the internals of its state.
-	GetState() interface{}
+	GetState() any
 	// SetState clobbers all current mapper settings with the provided state.
-	SetState(data interface{}) error
+	SetState(data any) error
 
 	// Debugging/Info
 	Name() string
@@ -41,6 +47,38 @@ type Mapper interface {
 	DumpFullStack() string
 
 	ClearRam()
+}
+
+type CallbackType uint8
+
+const (
+	READ CallbackType = 1
+	WRITE CallbackType = 2
+)
+
+type CallbackFunction func(address uint16, data uint8)
+
+type CallbackMapper interface {
+	Mapper
+
+	// Both the individual address and the range callbacks use the same
+	// underlying lookup table and will clobber eachother if addresses conflict.
+	// In such an event, the last registered callback will be used.
+	RegisterReadCallback(address uint16, f CallbackFunction)
+	RegisterWriteCallback(address uint16, f CallbackFunction)
+
+	RegisterReadCallbackRange(addressStart, addressEnd uint16, f CallbackFunction)
+	RegisterWriteCallbackRange(addressStart, addressEnd uint16, f CallbackFunction)
+
+	// These callbacks will always fire, regardless of address.
+	CallbackRead(f CallbackFunction)
+	CallbackWrite(f CallbackFunction)
+
+	// Fires when a mapper address is written.  Exact addresses are mapper
+	// specific.  This callback does not utilize the same lookup table as the
+	// address based callbacks.  The only thing that will overwrite a mapper
+	// callback is another mapper callback.
+	CallbackMapperWrite(f CallbackFunction)
 }
 
 var (

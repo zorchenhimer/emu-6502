@@ -73,15 +73,18 @@ type Core struct {
 	//cdl *cdlData
 
 	visited map[uint32]string
-	destinations []uint
-	cdl map[uint32]int
+	destinations []uint32
+	cdl map[uint32]byte
 }
 
 const (
-	cdl_Unknown int = 0x00
-	cdl_Code    int = 0x01
-	cdl_Data    int = 0x02
-	cdl_Label   int = 0x04
+	cdl_Unknown      byte = 0x00
+	cdl_Code         byte = 0x01
+	cdl_Data         byte = 0x02
+	cdl_Label        byte = 0x10  // "Jump Target"
+	cdl_IndirectData byte = 0x20
+	cdl_PcmData      byte = 0x40
+	cdl_SubEntry     byte = 0x80
 )
 
 func NewCore(rom mappers.Mapper) (*Core, error) {
@@ -101,8 +104,9 @@ func NewCore(rom mappers.Mapper) (*Core, error) {
 		//nmiTicker: time.NewTicker(nmiFrequency),
 		Breakpoints: &Breakpoints{},
 
-		visited: make(map[uint32]string),
-		cdl:     make(map[uint32]int),
+		visited:      make(map[uint32]string),
+		destinations: []uint32{},
+		cdl:          make(map[uint32]byte),
 	}
 
 	c.PC = c.ReadWord(VECTOR_RESET)
@@ -154,6 +158,8 @@ func (c *Core) Run() error {
 		limit = true
 	}
 
+	c.initCdl()
+
 	done := false
 	var err error
 	for !(done || c.stop) {
@@ -187,6 +193,22 @@ func (c *Core) Run() error {
 	return nil
 }
 
+func (c *Core) initCdl() {
+	if !c.EnableCDL {
+		return
+	}
+
+	if cbm, ok := c.memory.(mappers.CallbackMapper); ok {
+		f := func(address uint16, data uint8){
+			offset, _ := c.memory.Offset(address)
+			c.cdl[offset] |= cdl_Data
+		}
+
+		cbm.CallbackRead(f)
+		cbm.CallbackWrite(f)
+	}
+}
+
 // Run a routine and return after the last RTS
 func (c *Core) RunRoutine(address uint16) error {
 	if c.DebugFile != nil {
@@ -202,6 +224,8 @@ func (c *Core) RunRoutine(address uint16) error {
 	if c.InstructionLimit > 0 {
 		limit = true
 	}
+
+	c.initCdl()
 
 	var err error
 	for c.routineDepth > -1 && !c.stop {
@@ -332,10 +356,15 @@ func (c *Core) tick() error {
 		bin := []string{}
 		for i := uint16(0); i < l; i++ {
 			bin = append(bin, fmt.Sprintf("%02X", c.memory.ReadByte(oppc+i)))
-			c.cdl[c.memory.Offset(oppc+i)] |= cdl_Code
+			offset, _ := c.memory.Offset(oppc+i)
+			c.cdl[offset] |= cdl_Code
 		}
 
-		c.visited[c.memory.Offset(oppc)] = instr.Name() +" "+ instr.AddressMeta().CleanAsm(c, oppc) +" ; "+ strings.Join(bin, " ")
+		// If we've already visited this code, don't regenerate the assembly.
+		offset, _ := c.memory.Offset(oppc)
+		if _, ok := c.visited[offset]; !ok {
+			c.visited[offset] = fmt.Sprintf("[$%06X:$%04X] %s", offset, oppc, instr.Name() +" "+ instr.AddressMeta().CleanAsm(c, oppc) +" ; "+ strings.Join(bin, " "))
+		}
 	}
 
 	if c.Debug {
@@ -349,6 +378,155 @@ func (c *Core) tick() error {
 
 		if c.DebugFile != nil {
 			fmt.Fprintln(c.DebugFile, dbgLine)
+		}
+	}
+
+	return nil
+}
+
+type branch struct {
+	address uint16
+	state any
+}
+
+func (c *Core) Disassemble(start uint16) error {
+	branches := []branch{}	// list of branches in rom space
+	c.initCdl()
+
+	c.PC = start
+	nextBranch := false
+	limit := 10000
+
+	Main:
+	for {
+		limit--
+		if limit < 0 {
+			fmt.Println("limit reached")
+			return nil
+		}
+		offset, _ := c.memory.Offset(c.PC)
+		if _, ok := c.visited[offset]; ok || nextBranch {
+			if ok {
+				fmt.Printf("already visited $%06X\n", offset)
+			}
+			if len(branches) == 0 {
+				fmt.Println("no more branches")
+				break Main
+			}
+
+			noff, _ := c.memory.Offset(branches[0].address)
+			fmt.Printf("going to next branch at $%04X ($%06X)\n", branches[0].address, noff)
+
+			nextBranch = false
+			c.PC = branches[0].address
+			c.memory.SetState(branches[0].state)
+			if len(branches) > 1 {
+				branches = branches[1:]
+			} else {
+				branches = []branch{}
+			}
+		}
+
+		opcode := c.ReadByte(c.PC)
+		if opcode == 0 {
+			fmt.Printf("zero opcode @ $%04X ($%04X)\n", c.PC+0x10 -0x8000, c.PC)
+		}
+		instr, ok := instructionList[opcode]
+		if !ok || instr == nil {
+			nextBranch = true
+			continue
+		}
+
+		c.cdl[offset] |= cdl_Code
+		operandAddr, size := instr.AddressMeta().Address(c)
+
+		var dataAddr uint16
+		if size == 2 {
+			dataAddr = uint16(c.memory.ReadByte(operandAddr))
+			c.cdl[offset+1] |= cdl_Code
+		} else if size == 3 {
+			c.cdl[offset+1] |= cdl_Code
+			c.cdl[offset+2] |= cdl_Code
+
+			dataAddr = c.memory.ReadWord(operandAddr)
+		}
+
+		//fmt.Printf("%q\n", instr.Name())
+
+		// If we've already visited this code, don't regenerate the assembly.
+		if _, ok := c.visited[offset]; !ok {
+			str := fmt.Sprintf("[$%06X:$%04X] %s", offset, c.PC, instr.Name() +" "+ instr.AddressMeta().CleanAsm(c, c.PC))
+			c.visited[offset] = str
+			fmt.Println(str)
+		}
+
+		switch instr.Name() {
+		// standard instructions
+		case "ADC", "AND", "ASL", "BIT", "CLC", "CLD",
+			 "CLI", "CLV", "CMP", "CPX", "CPY", "DEC",
+			 "DEX", "DEY", "EOR", "INC", "INX", "INY",
+			 "LDA", "LDX", "LDY", "LSR", "NOP", "ORA",
+			 "PHA", "PHP", "PLA", "PLP", "ROL", "ROR",
+			 "SBC", "SEC", "SED", "SEI", "STA", "STX",
+			 "STY", "TAX", "TAY", "TSX", "TXA", "TXS",
+			 "TYA":
+
+			 if size > 1 {
+				 dataOffset, isRom := c.memory.Offset(dataAddr)
+				 if isRom {
+					 c.cdl[dataOffset] |= cdl_Data
+				 }
+			 }
+
+		// branches
+		case "BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS", "JSR":
+			//sint := int8(c.memory.ReadByte(operandAddr))
+			//baddr := uint16(int32(c.PC) + int32(sint))
+			//baddr := c.addrRelative(c.PC, c.memory.ReadByte(operandAddr))
+			////baddr := c.PC + sint
+			boff, _ := c.memory.Offset(operandAddr)
+			if instr.Name() == "JSR" {
+				fmt.Printf("adding JSR at $%06X:$%04X\n", boff, operandAddr)
+			} else {
+				fmt.Printf("adding branch at $%06X:$%04X\n", boff, operandAddr)
+			}
+			branches = append(branches, branch{
+				address: operandAddr,
+				state: c.memory.GetState(),
+			})
+
+		case "JMP":
+			if instr.AddressMeta() == ADDR_Absolute {
+				c.PC = operandAddr
+				continue
+			} else {
+				// TODO: relative jump
+				return fmt.Errorf("relative jump not implemented")
+			}
+
+		//case "JSR":
+		//	//jsrAddr := c.ReadWord(operandAddr)
+		//	joff, _ := c.memory.Offset(operandAddr)
+		//	fmt.Printf("adding JSR at $%06X:$%04X\n", joff, operandAddr)
+		//	branches = append(branches, branch{
+		//		address: operandAddr,
+		//		state: c.memory.GetState(),
+		//	})
+
+		case "BRK":
+			fmt.Printf("BRK: %02X\n", opcode)
+			nextBranch = true
+
+		case "RTI", "RTS":
+			// BRK shouldn't really do this, but w/e
+			nextBranch = true
+
+		default:
+			return fmt.Errorf("unknown instruction: %q", instr.Name())
+		}
+
+		if instr.Name() != "JMP" {
+			c.PC += uint16(size)
 		}
 	}
 
@@ -369,10 +547,10 @@ func (c *Core) WriteCdl(writer io.Writer) error {
 		}
 	}
 
-	vals := make([]byte, max)
+	vals := make([]byte, max+1)
 
 	for addr, val := range c.cdl {
-		vals[int(addr)] = byte(val)
+		vals[int(addr)] = val
 	}
 
 	_, err := writer.Write(vals)
@@ -390,9 +568,15 @@ func (c *Core) WriteVisited(writer io.Writer) error {
 
 	for _, addr := range addrs {
 		//_, err := fmt.Fprintln(writer, "%s ; %04X\n", c.visited[uint32(addr)], addr)
-		_, err := fmt.Fprintf(writer, "[$%04X:%06d] %s\n", addr, addr, c.visited[uint32(addr)])
+		line := strings.TrimSpace(c.visited[uint32(addr)])
+		_, err := fmt.Fprintln(writer, line)
 		if err != nil {
 			return err
+		}
+
+		parts := strings.Split(line, " ")
+		if parts[1] == "RTS" || parts[1] == "RTI" || parts[1] == "BRK" || strings.HasPrefix(parts[1], "JMP") {
+			fmt.Fprintln(writer, "")
 		}
 	}
 

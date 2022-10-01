@@ -70,6 +70,10 @@ func NewStudyBox(raw []byte, hasRam bool) (Mapper, error) {
 	return sb, nil
 }
 
+func (sb *StudyBox) IsRom(address uint16) bool {
+	return address >= 0x8000
+}
+
 // Read a byte from tape
 func (sb *StudyBox) read4200() uint8 {
 	if sb.tape == nil {
@@ -209,9 +213,9 @@ func (sb *StudyBox) ReadWord(address uint16) uint16 {
 	return uint16(sb.ReadByte(address)) | (uint16(sb.ReadByte(address+1)) << 8)
 }
 
-func (sb *StudyBox) Offset(address uint16) uint32 {
+func (sb *StudyBox) Offset(address uint16) (uint32, bool) {
 	panic("Offset not implemented yet")
-	return 0
+	return 0, sb.IsRom(address)
 }
 
 func (sb *StudyBox) GetState() interface{} {

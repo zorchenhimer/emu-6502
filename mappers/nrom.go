@@ -19,7 +19,7 @@ type NROM struct {
 	isHalf bool // if true, mirror 0xC000
 }
 
-func (nr *NROM) GetState() interface{} {
+func (nr *NROM) GetState() any {
 	state := &NROM{
 		hasRam: nr.hasRam,
 		isHalf: nr.isHalf,
@@ -38,7 +38,7 @@ func (nr *NROM) GetState() interface{} {
 	return state
 }
 
-func (nr *NROM) SetState(data interface{}) error {
+func (nr *NROM) SetState(data any) error {
 	state, ok := data.(NROM)
 	if !ok {
 		return fmt.Errorf("Invalid state given")
@@ -80,6 +80,10 @@ func (nr *NROM) Name() string {
 	return "NROM"
 }
 
+func (nr *NROM) IsRom(address uint16) bool {
+	return address >= 0x8000
+}
+
 func (nr *NROM) State() string {
 	var out bytes.Buffer
 
@@ -98,10 +102,14 @@ func (nr *NROM) State() string {
 	return out.String()
 }
 
-func (nr *NROM) Offset(address uint16) uint32 {
+func (nr *NROM) Offset(address uint16) (uint32, bool) {
+	if address < 0x8000 {
+		return uint32(address), false
+	}
+
 	// Minus 8k to put the ROM start at the start of the
 	// address space, plus 16 to account for the header.
-	return uint32(address) - 0x8000 + 16
+	return uint32(address) - 0x8000 + 16, nr.IsRom(address)
 }
 
 func (nr *NROM) ReadWord(address uint16) uint16 {

@@ -20,11 +20,11 @@ func NewFullRW(data []byte) (Mapper, error) {
 	}, nil
 }
 
-func (rw *FullRW) GetState() interface{} {
+func (rw *FullRW) GetState() any {
 	panic("\"Mapper\" FullRW does not support GetState()")
 }
 
-func (rw *FullRW) SetState(interface{}) error {
+func (rw *FullRW) SetState(any) error {
 	return fmt.Errorf("\"Mapper\" FullRW does not support GetState()")
 }
 
@@ -32,14 +32,18 @@ func (rw *FullRW) Name() string {
 	return "FullRW"
 }
 
+func (rw *FullRW) IsRom(address uint16) bool {
+	return true
+}
+
 func (rw *FullRW) State() string {
 	return rw.Name()
 }
 
-func (rw *FullRW) Offset(address uint16) uint32 {
+func (rw *FullRW) Offset(address uint16) (uint32, bool) {
 	// Minus 8k to put the ROM start at the start of the
 	// address space, plus 16 to account for the header.
-	return uint32(address) - 0x8000 + 16
+	return uint32(address) - 0x8000 + 16, rw.IsRom(address)
 }
 
 func (rw *FullRW) ReadWord(address uint16) uint16 {

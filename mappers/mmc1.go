@@ -39,9 +39,51 @@ type MMC1 struct {
 	// Temporary values for shifting values
 	shiftReg uint8
 	shiftCount uint8
+
+	callbacksRead map[uint16]CallbackFunction
+	callbacksWrite map[uint16]CallbackFunction
+	cbRead CallbackFunction
+	cbWrite CallbackFunction
+	cbMapper CallbackFunction
 }
 
-func (m *MMC1) GetState() interface{} {
+func (m *MMC1) IsRom(address uint16) bool {
+	return address >= 0x8000
+}
+
+func (m *MMC1) RegisterReadCallback(address uint16, f CallbackFunction) {
+	m.callbacksRead[address] = f
+}
+
+func (m *MMC1) RegisterWriteCallback(address uint16, f CallbackFunction) {
+	m.callbacksWrite[address] = f
+}
+
+func (m *MMC1) RegisterReadCallbackRange(addressStart, addressEnd uint16, f CallbackFunction) {
+	for addr := addressStart; addr <= addressEnd; addr++ {
+		m.callbacksRead[addr] = f
+	}
+}
+
+func (m *MMC1) RegisterWriteCallbackRange(addressStart, addressEnd uint16, f CallbackFunction) {
+	for addr := addressStart; addr <= addressEnd; addr++ {
+		m.callbacksWrite[addr] = f
+	}
+}
+
+func (m *MMC1) CallbackRead(f CallbackFunction) {
+	m.cbRead = f
+}
+
+func (m *MMC1) CallbackWrite(f CallbackFunction) {
+	m.cbWrite = f
+}
+
+func (m *MMC1) CallbackMapperWrite(f CallbackFunction) {
+	m.cbMapper = f
+}
+
+func (m *MMC1) GetState() any {
 	state := &MMC1{
 		hasRam: m.hasRam,
 		Mirroring: m.Mirroring,
@@ -68,7 +110,7 @@ func (m *MMC1) GetState() interface{} {
 	return state
 }
 
-func (m *MMC1) SetState(data interface{}) error {
+func (m *MMC1) SetState(data any) error {
 	state, ok := data.(MMC1)
 	if !ok {
 		return fmt.Errorf("Invalid state given")
@@ -146,7 +188,11 @@ func (m *MMC1) ReadWord(address uint16) uint16 {
 	return uint16(m.ReadByte(address)) | (uint16(m.ReadByte(address+1)) << 8)
 }
 
-func (m *MMC1) Offset(address uint16) uint32 {
+func (m *MMC1) Offset(address uint16) (uint32, bool) {
+	if address < 0x8000 {
+		return uint32(address), false
+	}
+
 	romAddr := uint32(address - 0x8000)
 	switch m.PrgBankMode {
 	case 0, 1:
@@ -172,23 +218,44 @@ func (m *MMC1) Offset(address uint16) uint32 {
 			address, romAddr, len(m.rom), m.State()))
 	}
 
-	return romAddr + 16
+	return romAddr + 16, m.IsRom(address)
 }
 
 func (m *MMC1) ReadByte(address uint16) uint8 {
+	var val uint8
+
 	// RAM
 	if address < 0x2000 {
-		return m.ram[address % 0x0800]
+		val = m.ram[address % 0x0800]
 	} else if address < 0x6000 {
-		return 0
+		val = 0
 	} else if address < 0x8000 && m.hasRam {
-		return m.wram[address - 0x6000]
+		val = m.wram[address - 0x6000]
+	} else {
+		offset, _ := m.Offset(address)
+		val = m.rom[offset-16]
 	}
 
-	return m.rom[m.Offset(address)-16]
+	if m.cbRead != nil {
+		m.cbRead(address, val)
+	}
+
+	if cb, ok := m.callbacksRead[address]; ok {
+		cb(address, val)
+	}
+
+	return val
 }
 
 func (m *MMC1) WriteByte(address uint16, value uint8) {
+	if m.cbWrite != nil {
+		m.cbWrite(address, value)
+	}
+
+	if cb, ok := m.callbacksWrite[address]; ok {
+		cb(address, value)
+	}
+
 	if address < 0x2000 {
 		m.ram[address % 0x0800] = value
 	} else if address < 0x6000 {
@@ -196,6 +263,10 @@ func (m *MMC1) WriteByte(address uint16, value uint8) {
 	} else if 0x6000 <= address && address < 0x8000 {
 		m.wram[address - 0x6000] = value
 	} else {
+		if m.cbMapper != nil {
+			m.cbMapper(address, value)
+		}
+
 		// reset mapper shift
 		if value & 0x80 != 0 {
 			m.shiftReg = 0
