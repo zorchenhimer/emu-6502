@@ -121,6 +121,32 @@ func NewMMC1(data []byte, hasRam bool) (Mapper, error) {
 	return mmc1, nil
 }
 
+func (m *MMC1) Info() Info {
+	info := Info{
+		PrgSize: uint(len(m.rom)),
+		PrgStartAddress: 0x8000,
+		PrgRamStartAddress: 0x6000,
+
+		// TODO: CHR stuff
+		ChrSize: 0,
+		ChrRamSize: 0,
+		ChrBankSize: 0,
+	}
+
+	if m.hasRam {
+		info.PrgRamSize = 0x2000
+	}
+
+	switch m.PrgBankMode {
+	case 0, 1:
+		info.PrgBankSize = 0x8000
+	case 2, 3:
+		info.PrgBankSize = 0x4000
+	}
+
+	return info
+}
+
 func (m *MMC1) Name() string {
 	return "MMC1"
 }

@@ -222,6 +222,11 @@ func (sb *StudyBox) SetState(data interface{}) error {
 	return fmt.Errorf("SetState() not implemented for StudyBox mapper")
 }
 
+func (sb StudyBox) Info() Info {
+	panic("StudyBox.Info() not implemented yet")
+	return Info{}
+}
+
 func (sb StudyBox) Name() string {
 	return "StudyBox"
 }

@@ -28,6 +28,21 @@ func (rw *FullRW) SetState(interface{}) error {
 	return fmt.Errorf("\"Mapper\" FullRW does not support GetState()")
 }
 
+func (rw *FullRW) Info() Info {
+	return Info{
+		PrgSize: 0,
+		PrgRamSize: 0x10000,
+		PrgBankSize: 0x10000,
+
+		ChrSize: 0,
+		ChrRamSize: 0,
+		ChrBankSize: 0,
+
+		PrgStartAddress: 0,
+		PrgRamStartAddress: 0,
+	}
+}
+
 func (rw *FullRW) Name() string {
 	return "FullRW"
 }

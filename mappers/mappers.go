@@ -29,10 +29,17 @@ type Mapper interface {
 	// the current bank configuration.
 	Offset(address uint16) uint32
 
+	// TODO
+	// Given the current mapper configuration, is
+	// the provided CPU address in RAM?
+	//IsRam(address uint16) bool
+
 	// GetState returns a mapper-specific snapshot of the internals of its state.
 	GetState() interface{}
 	// SetState clobbers all current mapper settings with the provided state.
 	SetState(data interface{}) error
+
+	Info() Info
 
 	// Debugging/Info
 	Name() string
@@ -41,6 +48,20 @@ type Mapper interface {
 	DumpFullStack() string
 
 	ClearRam()
+}
+
+type Info struct {
+	PrgSize uint
+	PrgRamSize uint
+	PrgBankSize uint
+
+	ChrSize uint
+	ChrRamSize uint
+	ChrBankSize uint
+
+	// Start addresses in CPU space
+	PrgStartAddress uint16
+	PrgRamStartAddress uint16
 }
 
 var (

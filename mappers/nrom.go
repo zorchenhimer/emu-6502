@@ -76,6 +76,33 @@ func NewNROM(data []byte, hasRam bool) (Mapper, error) {
 	return nrom, nil
 }
 
+func (nr *NROM) Info() Info {
+	info := Info{
+		PrgRamStartAddress: 0x6000,
+
+		// TODO: CHR stuff
+		ChrSize: 0,
+		ChrRamSize: 0,
+		ChrBankSize: 0,
+	}
+
+	if nr.hasRam {
+		info.PrgRamSize = 0x2000
+	}
+
+	if nr.isHalf {
+		info.PrgSize = 0x4000
+		info.PrgBankSize = 0x4000
+		info.PrgStartAddress = 0xC000
+	} else {
+		info.PrgSize = 0x8000
+		info.PrgBankSize = 0x8000
+		info.PrgStartAddress = 0x8000
+	}
+
+	return info
+}
+
 func (nr *NROM) Name() string {
 	return "NROM"
 }
