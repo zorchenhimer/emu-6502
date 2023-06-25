@@ -198,7 +198,7 @@ func (m *MMC1) Offset(address uint16) uint32 {
 			address, romAddr, len(m.rom), m.State()))
 	}
 
-	return romAddr + 16
+	return romAddr
 }
 
 func (m *MMC1) ReadByte(address uint16) uint8 {
@@ -211,7 +211,7 @@ func (m *MMC1) ReadByte(address uint16) uint8 {
 		return m.wram[address - 0x6000]
 	}
 
-	return m.rom[m.Offset(address)-16]
+	return m.rom[m.Offset(address)]
 }
 
 func (m *MMC1) WriteByte(address uint16, value uint8) {

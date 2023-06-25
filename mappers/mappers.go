@@ -25,8 +25,9 @@ type Mapper interface {
 	WriteByte(address uint16, value uint8)
 	ReadWord(address uint16) uint16
 
-	// Returns the offset in the ROM file given
-	// the current bank configuration.
+	// Returns the offset in the ROM given
+	// the current bank configuration.  Offset does
+	// not include the iNES header.
 	Offset(address uint16) uint32
 
 	// TODO

@@ -127,8 +127,8 @@ func (nr *NROM) State() string {
 
 func (nr *NROM) Offset(address uint16) uint32 {
 	// Minus 8k to put the ROM start at the start of the
-	// address space, plus 16 to account for the header.
-	return uint32(address) - 0x8000 + 16
+	// address space.
+	return uint32(address) - 0x8000
 }
 
 func (nr *NROM) ReadWord(address uint16) uint16 {
