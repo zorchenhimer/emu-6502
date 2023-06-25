@@ -8,7 +8,7 @@ import (
 	//"strings"
 
 	"github.com/zorchenhimer/emu-6502"
-	"github.com/zorchenhimer/emu-6502/mappers"
+	"github.com/zorchenhimer/emu-6502/mmu"
 )
 
 func main() {
@@ -23,37 +23,27 @@ func main() {
 		return
 	}
 
-	mapper, err := mappers.NewFullRW(rom)
+	mem, err := mmu.NewFullRam(rom)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	core, err := emu.NewCore(mapper)
+	core, err := emu.NewCore(mem)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	core.Breakpoints.Register(emu.EXECUTE, "Test success!", 0x3D78, func(c *emu.Core, event uint8, value uint8) {
-		fmt.Println("\nTESTS PASS!\n")
-		c.Halt()
-	})
+	//core.Breakpoints.Register(emu.EXECUTE, "Test success!", 0x3D78, func(c *emu.Core, event uint8, value uint8) {
+	//	fmt.Println("\nTESTS PASS!\n")
+	//	c.Halt()
+	//})
 
-	//instructions(core)
-
-	//file, err := os.Create("debug.txt")
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	//defer file.Close()
-
-	//core.DebugFile = file
-	// vectors have traps
-	//core.PC = 0x8000
 	core.PC = 0x0400
-	core.Debug = false
+	core.CheckStuck = true
+
+	//core.DebugFile = dbgFile
 
 	err = core.DumpMemoryToFile("before.txt")
 	if err != nil {
@@ -69,6 +59,13 @@ func main() {
 		//core.DumpPage(0x01)
 		//core.DumpPage(0x02)
 		core.DumpMemoryToFile("memory.txt")
+
+		if core.PC == 0x3D78 {
+			fmt.Println("\nTests Passed!\n")
+		} else {
+			fmt.Println("\nTests Failed!\n")
+		}
+
 		return
 	}
 

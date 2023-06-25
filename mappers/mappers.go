@@ -23,7 +23,7 @@ func registerMapper(id int, f mapperNewFunc) {
 type Mapper interface {
 	ReadByte(address uint16) uint8
 	WriteByte(address uint16, value uint8)
-	ReadWord(address uint16) uint16
+	//ReadWord(address uint16) uint16
 
 	// Returns the offset in the ROM given
 	// the current bank configuration.  Offset does
@@ -46,7 +46,7 @@ type Mapper interface {
 	Name() string
 	State() string
 
-	DumpFullStack() string
+	//DumpFullStack() string
 
 	ClearRam()
 }

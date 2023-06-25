@@ -3,7 +3,6 @@ package mappers
 import (
 	"bytes"
 	"fmt"
-	"strings"
 )
 
 func init() {
@@ -12,7 +11,6 @@ func init() {
 
 type NROM struct {
 	rom []byte
-	ram [0x0800]byte
 	wram [0x2000]byte
 
 	hasRam bool
@@ -25,7 +23,6 @@ func (nr *NROM) GetState() interface{} {
 		isHalf: nr.isHalf,
 
 		rom: nr.rom,
-		ram: [0x0800]byte{},
 	}
 
 	if nr.hasRam {
@@ -33,7 +30,6 @@ func (nr *NROM) GetState() interface{} {
 		wramCopy(&state.wram, &nr.wram)
 	}
 
-	ramCopy(&state.ram, &nr.ram)
 
 	return state
 }
@@ -51,15 +47,12 @@ func (nr *NROM) SetState(data interface{}) error {
 		wramCopy(&nr.wram, &state.wram)
 	}
 
-	ramCopy(&nr.ram, &state.ram)
-
 	return nil
 }
 
 func NewNROM(data []byte, hasRam bool) (Mapper, error) {
 	nrom := &NROM{
 		rom: data,
-		ram: [0x0800]byte{},
 		hasRam: hasRam,
 	}
 
@@ -131,46 +124,28 @@ func (nr *NROM) Offset(address uint16) uint32 {
 	return uint32(address) - 0x8000
 }
 
-func (nr *NROM) ReadWord(address uint16) uint16 {
-	return uint16(nr.ReadByte(address)) | (uint16(nr.ReadByte(address+1)) << 8)
-}
-
 func (nr *NROM) ReadByte(address uint16) uint8 {
-	if address < 0x2000 {
-		return nr.ram[address % 0x0800]
-	} else if address < 0x6000 {
-		return 0
-	} else if address < 0x8000 && nr.hasRam {
+	if nr.hasRam && address >= 0x6000 && address < 0x8000 {
 		return nr.wram[address - 0x6000]
+	} else if address >= 0x8000 {
+		address -= 0x8000
+		if nr.isHalf {
+			address = address % 0x4000
+		}
+		return nr.rom[address]
 	}
 
-	address -= 0x8000
-	if nr.isHalf {
-		address = address % 0x4000
-	}
-
-	return nr.rom[address]
+	return 0
 }
 
 func (nr *NROM) WriteByte(address uint16, value uint8) {
-	if address < 0x2000 {
-		nr.ram[address % 0x0800] = value
-	} else if nr.hasRam && 0x6000 <= address && address < 0x8000 {
+	if nr.hasRam && 0x6000 <= address && address < 0x8000 {
 		nr.wram[address - 0x6000] = value
 	}
 }
 
 func (nr *NROM) ClearRam() {
-	nr.ram = [0x0800]byte{}
 	if nr.hasRam {
 		nr.wram = [0x2000]byte{}
 	}
-}
-
-func (nr *NROM) DumpFullStack() string {
-	st := []string{}
-	for i := 0; i < 256; i++ {
-		st = append(st, fmt.Sprintf("$%02X", nr.ram[0x100+i]))
-	}
-	return strings.Join(st, " ")
 }

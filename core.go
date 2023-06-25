@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zorchenhimer/emu-6502/mappers"
+	"github.com/zorchenhimer/emu-6502/mmu"
 )
 
 const HistoryLength int = 100
@@ -38,7 +38,7 @@ type Core struct {
 
 	NmiFrequency time.Duration
 
-	memory mappers.Mapper
+	memory mmu.Manager
 
 	InstructionLimit uint64 // number of instructions to run
 	testing          bool
@@ -48,7 +48,7 @@ type Core struct {
 	lastPC       uint16
 	lastSame     int
 	lastReadAddr uint16
-	checkStuck   bool
+	CheckStuck   bool
 
 	// VERY verbose output
 	Debug     bool
@@ -72,7 +72,7 @@ type Core struct {
 	//cdl *cdlData
 }
 
-func NewCore(rom mappers.Mapper) (*Core, error) {
+func NewCore(m mmu.Manager) (*Core, error) {
 	c := &Core{
 		A:      0,
 		X:      0,
@@ -81,7 +81,7 @@ func NewCore(rom mappers.Mapper) (*Core, error) {
 		Phlags: 0,
 		SP:     0,
 
-		memory: rom,
+		memory: m,
 
 		//InstructionLimit: instrLimit,
 
@@ -250,7 +250,7 @@ func (c *Core) runInterrupt(interrupt uint16) {
 
 func (c *Core) tick() error {
 	//c.PC += 1
-	if c.checkStuck {
+	if c.CheckStuck {
 		if c.PC == c.lastPC {
 			c.lastSame++
 		} else {
@@ -278,7 +278,6 @@ func (c *Core) tick() error {
 	}
 
 	c.Breakpoints.Execute(c, c.PC, 0)
-
 	opcode := c.ReadByte(c.PC)
 
 	if opcode == 0xFF && c.testing {
