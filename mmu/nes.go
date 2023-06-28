@@ -34,10 +34,6 @@ func (n *NES) WriteByte(address uint16, value uint8) {
 	}
 }
 
-func (n *NES) ReadWord(address uint16) uint16 {
-	return uint16(n.ReadByte(address)) | (uint16(n.ReadByte(address+1)) << 8)
-}
-
 func (n *NES) ClearRam() {
 	for i := 0; i < len(n.ram); i++ {
 		n.ram[i] = 0

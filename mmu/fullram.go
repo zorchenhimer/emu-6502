@@ -28,10 +28,6 @@ func (fr *FullRam) ReadByte(address uint16) uint8 {
 	return fr.ram[address]
 }
 
-func (fr *FullRam) ReadWord(address uint16) uint16 {
-	return uint16(fr.ram[address]) | (uint16(fr.ram[address+1]) << 8)
-}
-
 func (fr *FullRam) WriteByte(address uint16, value uint8) {
 	fr.ram[address] = value
 }
