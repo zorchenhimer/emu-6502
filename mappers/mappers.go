@@ -12,6 +12,8 @@ import (
 type mapperNewFunc func(raw []byte, hasRam bool) (Mapper, error)
 var availableMappers map[int]mapperNewFunc = make(map[int]mapperNewFunc)
 
+type MemoryType string
+
 func registerMapper(id int, f mapperNewFunc) {
 	if _, exists := availableMappers[id]; exists {
 		panic(fmt.Sprintf("Mapper implementation with ID %d already exists", id))
@@ -34,6 +36,7 @@ type Mapper interface {
 	// Given the current mapper configuration, is
 	// the provided CPU address in RAM?
 	//IsRam(address uint16) bool
+	MemoryType(address uint16) string
 
 	// GetState returns a mapper-specific snapshot of the internals of its state.
 	GetState() interface{}

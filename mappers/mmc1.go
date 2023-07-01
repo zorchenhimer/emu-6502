@@ -284,3 +284,12 @@ func (m *MMC1) DumpFullStack() string {
 	}
 	return strings.Join(st, " ")
 }
+
+func (m *MMC1) MemoryType(address uint16) string {
+	if m.hasRam && address >= 0x6000 && address < 0x8000 {
+		return "NesWorkRam"
+	} else if address >= 0x8000 {
+		return "NesPrgRom"
+	}
+	return "NesOpenBus"
+}

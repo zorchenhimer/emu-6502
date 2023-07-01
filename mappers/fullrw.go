@@ -74,3 +74,8 @@ func (rw *FullRW) ClearRam() {}
 func (rw *FullRW) DumpFullStack() string {
 	return "FullRW DumpFullStack() not implemented"
 }
+
+func (rw *FullRW) MemoryType(address uint16) string {
+	return "NesWorkRam"
+}
+

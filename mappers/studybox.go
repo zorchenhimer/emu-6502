@@ -248,3 +248,10 @@ func (sb *StudyBox) ClearRam() {
 	sb.ramA = [0x4000]byte{}
 	sb.ramB = [0x8000]byte{}
 }
+
+func (sb *StudyBox) MemoryType(address uint16) string {
+	if address >= 0x4400 && address < 0x8000 {
+		return "NesWorkRam"
+	}
+	return "NesPrgRom"
+}

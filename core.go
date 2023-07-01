@@ -40,7 +40,7 @@ type Core struct {
 
 	memory mmu.Manager
 
-	InstructionLimit uint64 // number of instructions to run
+	InstructionLimit int64 // number of instructions to run
 	testing          bool
 	testDone         bool
 	ticks            uint64
@@ -53,6 +53,8 @@ type Core struct {
 	// VERY verbose output
 	Debug     bool
 	DebugFile io.Writer
+
+	Disassemble bool
 
 	history    [HistoryLength]string
 	historyIdx int
@@ -72,7 +74,7 @@ type Core struct {
 	//cdl *cdlData
 }
 
-func NewCore(m mmu.Manager) (*Core, error) {
+func NewCore(m mmu.Manager) *Core {
 	c := &Core{
 		A:      0,
 		X:      0,
@@ -83,7 +85,7 @@ func NewCore(m mmu.Manager) (*Core, error) {
 
 		memory: m,
 
-		//InstructionLimit: instrLimit,
+		InstructionLimit: -1,
 
 		history:   [HistoryLength]string{},
 		//nmiTicker: time.NewTicker(nmiFrequency),
@@ -91,7 +93,7 @@ func NewCore(m mmu.Manager) (*Core, error) {
 	}
 
 	c.PC = c.ReadWord(VECTOR_RESET)
-	return c, nil
+	return c
 }
 
 // Read address.  This will read from API registers if needed.
@@ -264,6 +266,13 @@ func (c *Core) tick() error {
 		}
 	}
 
+	if c.InstructionLimit > 0 {
+		c.InstructionLimit--
+	} else if c.InstructionLimit == 0 {
+		c.Halt()
+		return nil
+	}
+
 	if c.nmiTicker != nil {
 		// If it's time to NMI, do it.
 		// Note that this can never happen during the execution of another
@@ -295,6 +304,11 @@ func (c *Core) tick() error {
 
 	c.ticks++
 	instr.Execute(c)
+
+	if c.Disassemble {
+		dasm := strings.Join([]string{instr.Name(), instr.AddressMeta().Asm(c, oppc)}, " ")
+		c.memory.AddDasm(oppc, dasm)
+	}
 
 	if c.Debug {
 		dbgLine := c.HistoryString(oppc, instr)

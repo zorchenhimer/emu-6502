@@ -9,3 +9,5 @@ github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b h1:0dYZvX3IHhd
 github.com/zorchenhimer/go-nes v0.0.0-20200812223551-779d70605e5b/go.mod h1:r3Inhjt3LXORPy+p5FgbujlGhXH1DqZxJHEOl46x73Q=
 github.com/zorchenhimer/go-nes v0.0.0-20220529205058-c34ea252b439 h1:GqK02Av8Zz+9ekEwJMv2PuOBxP6KTjdpKOWVvLMo8UI=
 github.com/zorchenhimer/go-nes v0.0.0-20220529205058-c34ea252b439/go.mod h1:dbtu/ZR2HAAa2I+20RHa2WF5lCxEVw6oO5TTDbat9tY=
+github.com/zorchenhimer/go-nes v0.0.0-20230623232059-7d27763fa6d2 h1:/fvVxr+1TtZqxkW1/smrUvZYrpGxOqhF/4VmVhdWNwI=
+github.com/zorchenhimer/go-nes v0.0.0-20230623232059-7d27763fa6d2/go.mod h1:dbtu/ZR2HAAa2I+20RHa2WF5lCxEVw6oO5TTDbat9tY=

@@ -119,9 +119,23 @@ func (nr *NROM) State() string {
 }
 
 func (nr *NROM) Offset(address uint16) uint32 {
+	// This one's wram, probably
+	if address < 0x8000 {
+		return uint32(address - 0x6000)
+	}
+
 	// Minus 8k to put the ROM start at the start of the
 	// address space.
 	return uint32(address) - 0x8000
+}
+
+func (nr *NROM) MemoryType(address uint16) string {
+	if address >= 0x8000 {
+		return "NesPrgRom"
+	} else if address >= 0x6000 {
+		return "NesWorkRam"
+	}
+	return "NesOpenBus"
 }
 
 func (nr *NROM) ReadByte(address uint16) uint8 {
