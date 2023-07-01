@@ -1,2 +1,10 @@
 *.txt
+*.dat
+*.asm
+*.cdl
+*.nes
+*.dbg
+*.log
+*.map
+*.studybox
 bin/
