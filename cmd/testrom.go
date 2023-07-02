@@ -29,17 +29,7 @@ func main() {
 		return
 	}
 
-	core, err := emu.NewCore(mem)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	//core.Breakpoints.Register(emu.EXECUTE, "Test success!", 0x3D78, func(c *emu.Core, event uint8, value uint8) {
-	//	fmt.Println("\nTESTS PASS!\n")
-	//	c.Halt()
-	//})
-
+	core := emu.NewCore(mem)
 	core.PC = 0x0400
 	core.CheckStuck = true
 
