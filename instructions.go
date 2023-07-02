@@ -9,7 +9,7 @@ type ExecFunc func(c *Core, address uint16)
 type Instruction interface {
 	Execute(c *Core)
 	Name() string
-	InstrLength(c *Core) uint8
+	InstrLength() uint8
 	AddressMeta() AddressModeMeta
 }
 
@@ -823,7 +823,7 @@ func (di DebugInstruction) Execute(c *Core) {
 	c.PC += 1
 }
 
-func (di DebugInstruction) InstrLength(c *Core) uint8 {
+func (di DebugInstruction) InstrLength() uint8 {
 	return 1
 }
 
@@ -848,9 +848,8 @@ func (i StandardInstruction) Execute(c *Core) {
 	c.PC += uint16(size)
 }
 
-func (i StandardInstruction) InstrLength(c *Core) uint8 {
-	_, size := i.AddressMode.Address(c)
-	return size
+func (i StandardInstruction) InstrLength() uint8 {
+	return uint8(i.AddressMode.Size())
 }
 
 func (i StandardInstruction) Name() string {
@@ -1063,7 +1062,7 @@ func (a Accumulator) Execute(c *Core) {
 	c.PC += 1
 }
 
-func (a Accumulator) InstrLength(c *Core) uint8 {
+func (a Accumulator) InstrLength() uint8 {
 	return 1
 }
 
@@ -1088,9 +1087,8 @@ func (rmw ReadModifyWrite) Name() string {
 	return rmw.Instruction
 }
 
-func (rmw ReadModifyWrite) InstrLength(c *Core) uint8 {
-	_, size := rmw.AddressMode.Address(c)
-	return size
+func (rmw ReadModifyWrite) InstrLength() uint8 {
+	return uint8(rmw.AddressMode.Size())
 }
 
 func instr_DEC(c *Core, value uint8) uint8 {
@@ -1155,7 +1153,7 @@ func (b Branch) Execute(c *Core) {
 	}
 }
 
-func (b Branch) InstrLength(c *Core) uint8 {
+func (b Branch) InstrLength() uint8 {
 	return 2
 }
 
@@ -1176,9 +1174,8 @@ func (j Jump) Execute(c *Core) {
 	c.PC = j.Exec(c, address)
 }
 
-func (j Jump) InstrLength(c *Core) uint8 {
-	_, size := j.AddressMode.Address(c)
-	return size
+func (j Jump) InstrLength() uint8 {
+	return uint8(j.AddressMode.Size())
 }
 
 func (j Jump) AddressMeta() AddressModeMeta {

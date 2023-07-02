@@ -5,9 +5,10 @@ import (
 )
 
 type AddressModeMeta struct {
-	Name    string
-	Asm     func(c *Core, oppc uint16) string
-	Address func(c *Core) (uint16, uint8)
+	Name     string
+	Asm      func(c *Core, oppc uint16) string
+	Address  func(c *Core) (uint16, uint8)
+	Size     func() int
 }
 
 var ADDR_Accumulator = AddressModeMeta{
@@ -18,6 +19,7 @@ var ADDR_Accumulator = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC, 1
 	},
+	Size: func() int { return 1 },
 }
 
 var ADDR_Absolute = AddressModeMeta{
@@ -28,6 +30,7 @@ var ADDR_Absolute = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC + 1), 3
 	},
+	Size: func() int { return 3 },
 }
 
 var ADDR_AbsoluteX = AddressModeMeta{
@@ -42,6 +45,7 @@ var ADDR_AbsoluteX = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.X), 3
 	},
+	Size: func() int { return 3 },
 }
 
 var ADDR_AbsoluteY = AddressModeMeta{
@@ -56,6 +60,7 @@ var ADDR_AbsoluteY = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.PC+1) + uint16(c.Y), 3
 	},
+	Size: func() int { return 3 },
 }
 
 var ADDR_Immediate = AddressModeMeta{
@@ -66,6 +71,7 @@ var ADDR_Immediate = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC + 1, 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_Implied = AddressModeMeta{
@@ -76,6 +82,7 @@ var ADDR_Implied = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.PC, 1
 	},
+	Size: func() int { return 1 },
 }
 
 var ADDR_Indirect = AddressModeMeta{
@@ -90,6 +97,7 @@ var ADDR_Indirect = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(c.ReadWord(c.PC + 1)), 3
 	},
+	Size: func() int { return 3 },
 }
 
 var ADDR_IndirectX = AddressModeMeta{
@@ -104,6 +112,7 @@ var ADDR_IndirectX = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(uint16(c.ReadByte(c.PC+1) + c.X)), 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_IndirectY = AddressModeMeta{
@@ -118,6 +127,7 @@ var ADDR_IndirectY = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return c.ReadWord(uint16(c.ReadByte(uint16(c.PC+1)))) + uint16(c.Y), 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_ZeroPage = AddressModeMeta{
@@ -129,6 +139,7 @@ var ADDR_ZeroPage = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC + 1)), 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_ZeroPageX = AddressModeMeta{
@@ -143,6 +154,7 @@ var ADDR_ZeroPageX = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC+1) + c.X), 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_ZeroPageY = AddressModeMeta{
@@ -157,6 +169,7 @@ var ADDR_ZeroPageY = AddressModeMeta{
 	Address: func(c *Core) (uint16, uint8) {
 		return uint16(c.ReadByte(c.PC+1) + c.Y), 2
 	},
+	Size: func() int { return 2 },
 }
 
 var ADDR_Relative = AddressModeMeta{
@@ -174,4 +187,5 @@ var ADDR_Relative = AddressModeMeta{
 		panic("branch Address()")
 		return c.addrRelative(c.PC, c.ReadByte(c.PC+1)), 2
 	},
+	Size: func() int { return 2 },
 }

@@ -328,7 +328,7 @@ func (c *Core) tick() error {
 }
 
 func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
-	l := instr.InstrLength(c)
+	l := instr.InstrLength()
 	ops := []string{}
 	for i := uint8(0); i < l; i++ {
 		ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
