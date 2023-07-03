@@ -9,6 +9,7 @@ type AddressModeMeta struct {
 	Asm      func(c *Core, oppc uint16) string
 	Address  func(c *Core) (uint16, uint8)
 	Size     func() int
+	Decode   func(c *Core) string
 }
 
 var ADDR_Accumulator = AddressModeMeta{
@@ -20,6 +21,9 @@ var ADDR_Accumulator = AddressModeMeta{
 		return c.PC, 1
 	},
 	Size: func() int { return 1 },
+	Decode: func(c *Core) string {
+		return " A"
+	},
 }
 
 var ADDR_Absolute = AddressModeMeta{
@@ -31,6 +35,9 @@ var ADDR_Absolute = AddressModeMeta{
 		return c.ReadWord(c.PC + 1), 3
 	},
 	Size: func() int { return 3 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetLabel(c.PC+1)
+	},
 }
 
 var ADDR_AbsoluteX = AddressModeMeta{
@@ -46,6 +53,9 @@ var ADDR_AbsoluteX = AddressModeMeta{
 		return c.ReadWord(c.PC+1) + uint16(c.X), 3
 	},
 	Size: func() int { return 3 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))+", X"
+	},
 }
 
 var ADDR_AbsoluteY = AddressModeMeta{
@@ -61,6 +71,9 @@ var ADDR_AbsoluteY = AddressModeMeta{
 		return c.ReadWord(c.PC+1) + uint16(c.Y), 3
 	},
 	Size: func() int { return 3 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))+", Y"
+	},
 }
 
 var ADDR_Immediate = AddressModeMeta{
@@ -72,6 +85,9 @@ var ADDR_Immediate = AddressModeMeta{
 		return c.PC + 1, 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return fmt.Sprintf(" #$%02X", c.ReadByte(c.PC+1))
+	},
 }
 
 var ADDR_Implied = AddressModeMeta{
@@ -83,6 +99,9 @@ var ADDR_Implied = AddressModeMeta{
 		return c.PC, 1
 	},
 	Size: func() int { return 1 },
+	Decode: func(c *Core) string {
+		return ""
+	},
 }
 
 var ADDR_Indirect = AddressModeMeta{
@@ -98,13 +117,16 @@ var ADDR_Indirect = AddressModeMeta{
 		return c.ReadWord(c.ReadWord(c.PC + 1)), 3
 	},
 	Size: func() int { return 3 },
+	Decode: func(c *Core) string {
+		return " ("+c.memory.GetLabel(c.ReadWord(c.PC+1))+")"
+	},
 }
 
 var ADDR_IndirectX = AddressModeMeta{
-	Name: "(Indirect), X",
+	Name: "(Indirect, X)",
 	Asm: func(c *Core, oppc uint16) string {
 		value := c.ReadByte(oppc + 1)
-		return fmt.Sprintf("($%02X), X @ $%04X",
+		return fmt.Sprintf("($%02X, X) @ $%04X",
 			value,
 			c.ReadWord(uint16(value+c.X)),
 		)
@@ -113,13 +135,16 @@ var ADDR_IndirectX = AddressModeMeta{
 		return c.ReadWord(uint16(c.ReadByte(c.PC+1) + c.X)), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " ("+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", X)"
+	},
 }
 
 var ADDR_IndirectY = AddressModeMeta{
-	Name: "(Indirect, Y)",
+	Name: "(Indirect), Y",
 	Asm: func(c *Core, oppc uint16) string {
 		value := c.ReadByte(oppc + 1)
-		return fmt.Sprintf("($%02X, Y) @ $%04X",
+		return fmt.Sprintf("($%02X), Y @ $%04X",
 			value,
 			c.ReadWord(uint16(value))+uint16(c.Y),
 		)
@@ -128,6 +153,9 @@ var ADDR_IndirectY = AddressModeMeta{
 		return c.ReadWord(uint16(c.ReadByte(uint16(c.PC+1)))) + uint16(c.Y), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " ("+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+"), Y"
+	},
 }
 
 var ADDR_ZeroPage = AddressModeMeta{
@@ -140,6 +168,9 @@ var ADDR_ZeroPage = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC + 1)), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))
+	},
 }
 
 var ADDR_ZeroPageX = AddressModeMeta{
@@ -155,6 +186,9 @@ var ADDR_ZeroPageX = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC+1) + c.X), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", X"
+	},
 }
 
 var ADDR_ZeroPageY = AddressModeMeta{
@@ -170,6 +204,9 @@ var ADDR_ZeroPageY = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC+1) + c.Y), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", Y"
+	},
 }
 
 var ADDR_Relative = AddressModeMeta{
@@ -188,4 +225,7 @@ var ADDR_Relative = AddressModeMeta{
 		return c.addrRelative(c.PC, c.ReadByte(c.PC+1)), 2
 	},
 	Size: func() int { return 2 },
+	Decode: func(c *Core) string {
+		return " "+c.memory.GetLabel(c.addrRelative(c.PC, c.ReadByte(c.PC+1)))
+	},
 }

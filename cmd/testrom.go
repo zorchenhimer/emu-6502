@@ -32,6 +32,7 @@ func main() {
 	core := emu.NewCore(mem)
 	core.PC = 0x0400
 	core.CheckStuck = true
+	core.Disassemble = true
 
 	//core.DebugFile = dbgFile
 
@@ -55,11 +56,22 @@ func main() {
 		} else {
 			fmt.Println("\nTests Failed!\n")
 		}
-
-		return
 	}
 
 	err = core.DumpMemoryToFile("after.txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	asmfile, err := os.Create("testrom.asm")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer asmfile.Close()
+
+	err = mem.WriteDasm(asmfile)
 	if err != nil {
 		fmt.Println(err)
 		return

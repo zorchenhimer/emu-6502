@@ -11,6 +11,7 @@ type Instruction interface {
 	Name() string
 	InstrLength() uint8
 	AddressMeta() AddressModeMeta
+	Decode(c *Core) string
 }
 
 var instructionList = map[byte]Instruction{
@@ -827,6 +828,10 @@ func (di DebugInstruction) InstrLength() uint8 {
 	return 1
 }
 
+func (di DebugInstruction) Decode(c *Core) string {
+	return "DBG"
+}
+
 func instr_DBG(c *Core, i Instruction) {
 	fmt.Println(c.HistoryString(c.PC, i))
 }
@@ -854,6 +859,10 @@ func (i StandardInstruction) InstrLength() uint8 {
 
 func (i StandardInstruction) Name() string {
 	return i.Instruction
+}
+
+func (i StandardInstruction) Decode(c *Core) string {
+	return i.Name() + i.AddressMode.Decode(c)
 }
 
 func instr_CLC(c *Core, address uint16) {
@@ -1066,6 +1075,10 @@ func (a Accumulator) InstrLength() uint8 {
 	return 1
 }
 
+func (i Accumulator) Decode(c *Core) string {
+	return i.Name()+" A"
+}
+
 type ReadModifyWrite struct {
 	OpCode      byte
 	Instruction string
@@ -1089,6 +1102,10 @@ func (rmw ReadModifyWrite) Name() string {
 
 func (rmw ReadModifyWrite) InstrLength() uint8 {
 	return uint8(rmw.AddressMode.Size())
+}
+
+func (i ReadModifyWrite) Decode(c *Core) string {
+	return i.Name() + i.AddressMode.Decode(c)
 }
 
 func instr_DEC(c *Core, value uint8) uint8 {
@@ -1157,6 +1174,10 @@ func (b Branch) InstrLength() uint8 {
 	return 2
 }
 
+func (i Branch) Decode(c *Core) string {
+	return i.Name() + i.AddressMeta().Decode(c)
+}
+
 // anything that modifies the PC directly, aside form branches
 type Jump struct {
 	OpCode      byte
@@ -1182,6 +1203,10 @@ func (j Jump) AddressMeta() AddressModeMeta {
 	return j.AddressMode
 }
 
+func (i Jump) Decode(c *Core) string {
+	return i.Name() + i.AddressMode.Decode(c)
+}
+
 func instr_JMP(c *Core, address uint16) uint16 {
 	return address
 }
@@ -1198,11 +1223,13 @@ func instr_RTS(c *Core, address uint16) uint16 {
 }
 
 func instr_RTI(c *Core, address uint16) uint16 {
+	c.routineDepth -= 1
 	c.Phlags = c.pullByte()
 	return c.pullAddress()
 }
 
 func instr_BRK(c *Core, address uint16) uint16 {
+	c.routineDepth += 1
 	c.pushAddress(c.PC + 2)
 	c.pushByte(c.Phlags | FLAG_BREAK)
 	c.Phlags = c.Phlags | FLAG_INTERRUPT

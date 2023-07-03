@@ -55,8 +55,12 @@ func (n *NES) ClearRam() {
 	n.mapper.ClearRam()
 }
 
+func (n *NES) GetZpLabel(address uint8) string {
+	return fmt.Sprintf("$%02X", address)
+}
+
 func (n *NES) GetLabel(address uint16) string {
-	return ""
+	return fmt.Sprintf("$%04X", address)
 }
 
 func (n *NES) LoadLabelsMesen2(filename string) error {

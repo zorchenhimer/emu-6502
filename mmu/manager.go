@@ -9,6 +9,7 @@ type Manager interface {
 	WriteByte(address uint16, value uint8)
 
 	GetLabel(address uint16) string
+	GetZpLabel(address uint8) string
 
 	AddDasm(address uint16, src string)
 	WriteDasm(writer io.Writer) error

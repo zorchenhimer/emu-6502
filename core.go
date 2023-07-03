@@ -165,7 +165,7 @@ func (c *Core) Run() error {
 	}
 
 	if c.stop {
-		c.dumpHistory()
+		c.DumpHistory()
 		return fmt.Errorf("Halt received")
 	}
 
@@ -180,7 +180,6 @@ func (c *Core) RunRoutine(address uint16) error {
 		c.Debug = true
 	}
 
-	c.pushAddress(address)
 	c.routineDepth = 0
 	c.runRoutine = true
 	c.PC = address
@@ -189,6 +188,7 @@ func (c *Core) RunRoutine(address uint16) error {
 	for c.routineDepth > -1 && !c.stop {
 		err = c.tick()
 		if err != nil {
+			c.DumpHistory()
 			return err
 		}
 	}
@@ -196,14 +196,14 @@ func (c *Core) RunRoutine(address uint16) error {
 	return nil
 }
 
-func (c *Core) dumpHistory() {
+func (c *Core) DumpHistory() {
 	if !c.Debug {
 		return
 	}
 
 	for i := c.historyIdx; i < HistoryLength; i++ {
 		if c.history[i] == "" {
-			return
+			break
 		}
 		fmt.Println(c.history[i])
 	}
@@ -214,7 +214,6 @@ func (c *Core) dumpHistory() {
 		}
 		fmt.Println(c.history[i])
 	}
-
 }
 
 func (c *Core) Halt() {
@@ -261,7 +260,7 @@ func (c *Core) tick() error {
 		}
 
 		if c.lastSame > 0 {
-			c.dumpHistory()
+			c.DumpHistory()
 			return fmt.Errorf("Stuck at $%04X", c.PC)
 		}
 	}
@@ -296,19 +295,17 @@ func (c *Core) tick() error {
 
 	instr, ok := instructionList[opcode]
 	if !ok || instr == nil {
-		c.dumpHistory()
+		c.DumpHistory()
 		return fmt.Errorf("OP Code not implemented: [$%04X] $%02X", c.PC, opcode)
 	}
 
-	oppc := c.PC
+	if c.Disassemble {
+		c.memory.AddDasm(c.PC, instr.Decode(c))
+	}
 
+	oppc := c.PC
 	c.ticks++
 	instr.Execute(c)
-
-	if c.Disassemble {
-		dasm := strings.Join([]string{instr.Name(), instr.AddressMeta().Asm(c, oppc)}, " ")
-		c.memory.AddDasm(oppc, dasm)
-	}
 
 	if c.Debug {
 		dbgLine := c.HistoryString(oppc, instr)
