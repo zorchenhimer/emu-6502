@@ -9,6 +9,7 @@ import (
 
 type Label struct {
 	Name string
+	Comment string
 	Size uint
 }
 
@@ -63,7 +64,7 @@ func LoadMesen2(filename string) (map[mesen.MemoryType]LabelMap, error) {
 		if _, ok := ret[mesen.MemoryType(lbl.MemoryType)]; !ok {
 			ret[mesen.MemoryType(lbl.MemoryType)] = make(LabelMap)
 		}
-		ret[mesen.MemoryType(lbl.MemoryType)][uint(lbl.Address)] = &Label{Name: lbl.Label, Size: uint(lbl.Length)}
+		ret[mesen.MemoryType(lbl.MemoryType)][uint(lbl.Address)] = &Label{Name: lbl.Label, Comment: lbl.Comment, Size: uint(lbl.Length)}
 	}
 
 	return ret, nil
