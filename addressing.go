@@ -36,7 +36,7 @@ var ADDR_Absolute = AddressModeMeta{
 	},
 	Size: func() int { return 3 },
 	Decode: func(c *Core) string {
-		return " "+c.memory.GetLabel(c.PC+1)
+		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))
 	},
 }
 
