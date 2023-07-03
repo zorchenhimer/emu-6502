@@ -56,11 +56,33 @@ func (n *NES) ClearRam() {
 }
 
 func (n *NES) GetZpLabel(address uint8) string {
+	lbl := n.lookupLabel(uint16(address))
+	if lbl != "" {
+		return lbl
+	}
 	return fmt.Sprintf("$%02X", address)
 }
 
 func (n *NES) GetLabel(address uint16) string {
+	lbl := n.lookupLabel(address)
+	if lbl != "" {
+		return lbl
+	}
 	return fmt.Sprintf("$%04X", address)
+}
+
+func (n *NES) lookupLabel(address uint16) string {
+	switch n.MemoryType(address) {
+	case NesInternalRam:
+		if lbl, ok := n.labels[mesen.NesInternalRam][uint(address%0x800)]; ok {
+			return lbl.Name
+		}
+	case NesPrgRom, NesWorkRam, NesSaveRam:
+		if lbl, ok := n.labels[mesen.MemoryType(n.MemoryType(address))][uint(n.mapper.Offset(address))]; ok {
+			return lbl.Name
+		}
+	}
+	return ""
 }
 
 func (n *NES) LoadLabelsMesen2(filename string) error {
@@ -100,6 +122,20 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 	sort.Slice(addrs, func(i, j int) bool { return addrs[i] < addrs[j] })
 
 	for _, addr := range addrs {
+		if lbl, ok := n.labels[mesen.NesPrgRom][addr]; ok {
+			if lbl.Comment != "" {
+				_, err := fmt.Fprintln(writer, ";"+lbl.Comment)
+				if err != nil {
+					return err
+				}
+			}
+			if lbl.Name != "" {
+				_, err := fmt.Fprintln(writer, lbl.Name+":")
+				if err != nil {
+					return err
+				}
+			}
+		}
 		_, err := fmt.Fprintln(writer, n.dasmRom[addr])
 		if err != nil {
 			return err
