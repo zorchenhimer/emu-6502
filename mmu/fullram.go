@@ -49,7 +49,7 @@ func (fr *FullRam) GetLabel(address uint16) string {
 	return fmt.Sprintf("$%04X", address)
 }
 
-func (fr *FullRam) AddDasm(address uint16, src string) {
+func (fr *FullRam) AddDasm(address uint16, src string, size uint) {
 	//panic("AddDasm() not implemented for FullRam")
 	fr.dasm[address] = src
 }

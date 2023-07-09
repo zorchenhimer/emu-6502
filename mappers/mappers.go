@@ -51,6 +51,9 @@ type Mapper interface {
 
 	//DumpFullStack() string
 
+	// return byte at rom offset, not CPU address
+	RomRead(offset uint) byte
+
 	ClearRam()
 }
 

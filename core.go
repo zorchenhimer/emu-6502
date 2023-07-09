@@ -56,6 +56,9 @@ type Core struct {
 
 	Disassemble bool
 
+	// just the address for now.  probably needs the whole state of the core or something, idk.
+	dasmTrees []uint16
+
 	history    [HistoryLength]string
 	historyIdx int
 
@@ -180,6 +183,10 @@ func (c *Core) RunRoutine(address uint16) error {
 		c.Debug = true
 	}
 
+	if c.Disassemble {
+		fmt.Printf("RunRoutine($%04X)\n", address)
+	}
+
 	c.routineDepth = 0
 	c.runRoutine = true
 	c.PC = address
@@ -189,6 +196,21 @@ func (c *Core) RunRoutine(address uint16) error {
 		err = c.tick()
 		if err != nil {
 			c.DumpHistory()
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Just walk through code, i guess?  haphazardly execute shit?
+func (c *Core) StaticDisassembly() error {
+	fmt.Println("len(c.dasmTrees):", len(c.dasmTrees))
+	for idx := 0; idx < len(c.dasmTrees); idx++ {
+		fmt.Printf("$%04X\n", c.dasmTrees[idx])
+		c.InstructionLimit = 1000
+		err := c.RunRoutine(c.dasmTrees[idx])
+		if err != nil {
 			return err
 		}
 	}
@@ -300,7 +322,8 @@ func (c *Core) tick() error {
 	}
 
 	if c.Disassemble {
-		c.memory.AddDasm(c.PC, instr.Decode(c))
+		//fmt.Printf("$%04X: %s\n", c.PC, instr.Decode(c))
+		c.memory.AddDasm(c.PC, instr.Decode(c), uint(instr.AddressMeta().Size()))
 	}
 
 	oppc := c.PC

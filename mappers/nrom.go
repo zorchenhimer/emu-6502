@@ -163,3 +163,11 @@ func (nr *NROM) ClearRam() {
 		nr.wram = [0x2000]byte{}
 	}
 }
+
+func (nr *NROM) RomRead(offset uint) byte {
+	if offset > uint(len(nr.rom)) {
+		return 0
+	}
+
+	return nr.rom[offset]
+}

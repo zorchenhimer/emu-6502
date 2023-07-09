@@ -79,3 +79,6 @@ func (rw *FullRW) MemoryType(address uint16) string {
 	return "NesWorkRam"
 }
 
+func (rw *FullRW) RomRead(offset uint) byte {
+	panic("RomRead() not implemented")
+}

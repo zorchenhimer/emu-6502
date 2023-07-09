@@ -255,3 +255,7 @@ func (sb *StudyBox) MemoryType(address uint16) string {
 	}
 	return "NesPrgRom"
 }
+
+func (sb *StudyBox) RomRead(offset uint) byte {
+	panic("RomRead() not implemented")
+}

@@ -1165,8 +1165,14 @@ func (b Branch) Execute(c *Core) {
 
 	if (c.Phlags & b.Flag) == v {
 		c.PC = c.addrRelative(c.PC, c.ReadByte(c.PC+1))
+		if c.Disassemble {
+			c.dasmTrees = append(c.dasmTrees, c.PC+2)
+		}
 	} else {
 		c.PC += 2
+		if c.Disassemble {
+			c.dasmTrees = append(c.dasmTrees, c.addrRelative(c.PC, c.ReadByte(c.PC+1)))
+		}
 	}
 }
 

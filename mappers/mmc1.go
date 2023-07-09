@@ -293,3 +293,12 @@ func (m *MMC1) MemoryType(address uint16) string {
 	}
 	return "NesOpenBus"
 }
+
+// Read byte at ROM offset
+func (m *MMC1) RomRead(offset uint) byte {
+	if offset > uint(len(m.rom)) {
+		return 0
+	}
+
+	return m.rom[offset]
+}

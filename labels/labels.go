@@ -15,10 +15,20 @@ type Label struct {
 
 type LabelMap map[uint]*Label
 
+func (lm LabelMap) FindLabel(name string) (uint, bool) {
+	 for addr, lbl := range lm {
+		 if lbl.Name == name {
+			 return addr, true
+		 }
+	 }
+
+	 return 0, false
+}
+
 // Return the label for the given address.  If there is an exact match, return
 // that label.  Otherwise, look for the closest previous label and return that
 // label if the given address is within the Size of that label.
-func (lm LabelMap) FindLabel(address uint) string {
+func (lm LabelMap) GetLabel(address uint) string {
 	if lbl, ok := lm[address]; ok {
 		if lbl.Size > 1 {
 			return lbl.Name+"+0"
@@ -46,7 +56,7 @@ func (lm LabelMap) FindLabel(address uint) string {
 	return ""
 }
 
-func LoadMesen2(filename string) (map[mesen.MemoryType]LabelMap, error) {
+func LoadMesen2(filename string) (map[MemoryType]LabelMap, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s: %w", filename, err)
@@ -58,13 +68,14 @@ func LoadMesen2(filename string) (map[mesen.MemoryType]LabelMap, error) {
 		return nil, fmt.Errorf("unable to load workspace: %w", err)
 	}
 
-	ret := make(map[mesen.MemoryType]LabelMap)
+	ret := make(map[MemoryType]LabelMap)
 
 	for _, lbl := range ws.Labels {
-		if _, ok := ret[mesen.MemoryType(lbl.MemoryType)]; !ok {
-			ret[mesen.MemoryType(lbl.MemoryType)] = make(LabelMap)
+		if _, ok := ret[MemoryType(lbl.MemoryType)]; !ok {
+			ret[MemoryType(lbl.MemoryType)] = make(LabelMap)
 		}
-		ret[mesen.MemoryType(lbl.MemoryType)][uint(lbl.Address)] = &Label{Name: lbl.Label, Comment: lbl.Comment, Size: uint(lbl.Length)}
+		ret[MemoryType(lbl.MemoryType)][uint(lbl.Address)] = &Label{
+			Name: lbl.Label, Comment: lbl.Comment, Size: uint(lbl.Length)}
 	}
 
 	return ret, nil

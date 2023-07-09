@@ -7,16 +7,26 @@ import (
 
 	"github.com/zorchenhimer/emu-6502/labels"
 	"github.com/zorchenhimer/emu-6502/mappers"
-	"github.com/zorchenhimer/go-nes/mesen"
+	//dis "github.com/zorchenhimer/emu-6502/disassembly"
+	//"github.com/zorchenhimer/go-nes/mesen"
 )
+
+type Disassembly struct {
+	//OpCode byte
+	Value string
+	Size uint
+	Address uint // address in bank space, not CPU space
+}
 
 type NES struct {
 	mapper mappers.Mapper
 	ram [0x0800]byte
-	labels map[mesen.MemoryType]labels.LabelMap
+	labels map[labels.MemoryType]labels.LabelMap
 
 	dasmRom map[uint]string
 	dasmRam map[uint]string
+
+	dasm []*Disassembly
 }
 
 func NewNES(mapper mappers.Mapper) *NES {
@@ -26,6 +36,7 @@ func NewNES(mapper mappers.Mapper) *NES {
 
 		dasmRom: make(map[uint]string),
 		dasmRam: make(map[uint]string),
+		dasm: make([]*Disassembly, mapper.Info().PrgSize),
 	}
 }
 
@@ -73,16 +84,27 @@ func (n *NES) GetLabel(address uint16) string {
 
 func (n *NES) lookupLabel(address uint16) string {
 	switch n.MemoryType(address) {
-	case NesInternalRam:
-		if lbl, ok := n.labels[mesen.NesInternalRam][uint(address%0x800)]; ok {
+	case labels.NesInternalRam:
+		if lbl, ok := n.labels[labels.NesInternalRam][uint(address%0x800)]; ok {
 			return lbl.Name
 		}
-	case NesPrgRom, NesWorkRam, NesSaveRam:
-		if lbl, ok := n.labels[mesen.MemoryType(n.MemoryType(address))][uint(n.mapper.Offset(address))]; ok {
+	case labels.NesPrgRom, labels.NesWorkRam, labels.NesSaveRam:
+		if lbl, ok := n.labels[labels.MemoryType(n.MemoryType(address))][uint(n.mapper.Offset(address))]; ok {
 			return lbl.Name
 		}
 	}
 	return ""
+}
+
+func (n *NES) FindLabel(name string) (uint, labels.MemoryType) {
+	for t, list := range n.labels {
+		addr, found := list.FindLabel(name)
+		if found {
+			return addr, t
+		}
+	}
+
+	return 0, labels.NesOpenBus
 }
 
 func (n *NES) LoadLabelsMesen2(filename string) error {
@@ -91,28 +113,114 @@ func (n *NES) LoadLabelsMesen2(filename string) error {
 	return err
 }
 
-func (n *NES) AddDasm(address uint16, src string) {
+func (n *NES) AddDasm(address uint16, src string, size uint) {
 	offset := uint(n.mapper.Offset(address))
-	switch n.MemoryType(address) {
-	case NesWorkRam:
-		n.dasmRam[offset] = src
-	case NesPrgRom:
-		n.dasmRom[offset] = src
-	default:
-		// do nothing for now
+	if n.MemoryType(address) != labels.NesPrgRom {
+		return
 	}
+
+	instr := &Disassembly{
+		Value: src,
+		Address: offset,
+		Size: size,
+	}
+
+	for i := uint(0); i < size; i++ {
+		n.dasm[i+offset] = instr
+	}
+
+	//n.dasm.Add(&dis.Instruction{
+	//	Address: offset,
+	//	Value: src,
+	//	Size: size,
+	//})
+
+	//switch n.MemoryType(address) {
+	//case NesWorkRam:
+	//	n.dasmRam[offset] = src
+	//case NesPrgRom:
+	//	n.dasmRom[offset] = src
+	//default:
+	//	// do nothing for now
+	//}
 }
 
-func (n *NES) MemoryType(address uint16) MemoryType {
+func (n *NES) MemoryType(address uint16) labels.MemoryType {
 	if address >= 0x4020 {
-		return MemoryType(n.mapper.MemoryType(address))
+		return labels.MemoryType(n.mapper.MemoryType(address))
 	} else if address < 0x2000 {
-		return NesInternalRam
+		return labels.NesInternalRam
 	}
-	return NesMemory
+	return labels.NesMemory
 }
 
 func (n *NES) WriteDasm(writer io.Writer) error {
+	nothing := 0
+	start := uint(0)
+	for i := uint(0); i < uint(len(n.dasm)); i++ {
+		if n.dasm[i] == nil {
+			if nothing == 0 {
+				start = i
+			}
+			nothing++
+			continue
+		}
+
+		if nothing != 0 {
+			//err := n.writeline(writer, "", fmt.Sprintf("$%06X: unknown for %d bytes", start, nothing))
+			////_, err := fmt.Fprintf(writer, "; $%06X: unknown for %d bytes\n", start, nothing)
+			//if err != nil {
+			//	return err
+			//}
+
+			for j := start; j < i; j++ {
+				err := n.writeline(writer, fmt.Sprintf("    .byte $%02X", n.mapper.RomRead(j)), fmt.Sprintf("$%06X", j))
+				//_, err := fmt.Fprintf(writer, "    .byte $%02X ; $%06X \n", n.mapper.RomRead(j), j)
+				if err != nil {
+					return err
+				}
+			}
+
+			nothing = 0
+		}
+
+		if lbl, ok := n.labels[labels.NesPrgRom][i]; ok {
+			if lbl.Comment != "" {
+				err := n.writeline(writer, "", fmt.Sprintf("$%06X: %s", i, lbl.Comment))
+				if err != nil {
+					return err
+				}
+			}
+			if lbl.Name != "" {
+				//_, err := fmt.Fprintf(writer, "%s: ; $%06X\n", lbl.Name, i)
+				err := n.writeline(writer, lbl.Name+":", fmt.Sprintf("$%06X", i))
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		err := n.writeline(writer, "    "+n.dasm[i].Value, fmt.Sprintf("$%06X", i))
+		//_, err := fmt.Fprintf(writer, "  %-10s ; $%06X\n", n.dasm[i].Value, i)
+		if err != nil {
+			return err
+		}
+
+		if n.dasm[i].Size > 1 {
+			i = i+n.dasm[i].Size-1
+		}
+	}
+
+	return nil
+	//return n.dasm.Write(writer)
+}
+
+func (n *NES) writeline(w io.Writer, src, comment string) error {
+	_, err := fmt.Fprintf(w, "%-30s ; %s\n", src, comment)
+	return err
+}
+
+func (n *NES) WriteDasmWhat(writer io.Writer) error {
 	addrs := []uint{}
 
 	for addr, _ := range n.dasmRom {
@@ -122,7 +230,7 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 	sort.Slice(addrs, func(i, j int) bool { return addrs[i] < addrs[j] })
 
 	for _, addr := range addrs {
-		if lbl, ok := n.labels[mesen.NesPrgRom][addr]; ok {
+		if lbl, ok := n.labels[labels.NesPrgRom][addr]; ok {
 			if lbl.Comment != "" {
 				_, err := fmt.Fprintln(writer, ";"+lbl.Comment)
 				if err != nil {
@@ -143,4 +251,12 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 	}
 
 	return nil
+}
+
+func (n *NES) Labels(t labels.MemoryType) labels.LabelMap {
+	if l, ok := n.labels[t]; ok {
+		return l
+	}
+	return nil
+
 }
