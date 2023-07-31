@@ -1169,13 +1169,11 @@ func (b Branch) Execute(c *Core) {
 
 	if (c.Phlags & b.Flag) == v {
 		if c.Disassemble {
-			fmt.Printf("[$%04X] new branch (taken): $%04X\n", c.PC, c.PC+2)
 			c.dasmTrees = append(c.dasmTrees, c.PC+2)
 		}
 		c.PC = reladdr
 	} else {
 		if c.Disassemble {
-			fmt.Printf("[$%04X] new branch (fallthrough): $%04X\n", c.PC, reladdr)
 			c.dasmTrees = append(c.dasmTrees, reladdr)
 		}
 		c.PC += 2

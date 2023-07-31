@@ -352,7 +352,12 @@ func (c *Core) tick() error {
 			arg = uint(c.memory.Offset(c.ReadWord(c.PC+1)))
 
 		case StandardInstruction, ReadModifyWrite:
-			arg = uint(c.ReadByte(c.PC+1))
+			switch instr.Length() {
+			case 2:
+				arg = uint(c.ReadByte(c.PC+1))
+			case 3:
+				arg = uint(c.ReadWord(c.PC+1))
+			}
 		}
 
 		c.memory.AddDasm(

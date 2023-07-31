@@ -235,7 +235,6 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 		//	l = fmt.Sprintf("$%04d", n.dasm[i].Address)
 		//}
 
-		// TODO: left off with this.  it's not implemented. (defref the labels here, not when we run the op code in core)
 		src := n.dasm[i].Instr.Decode(n.dasm[i].Argument, n)
 		err := n.writeline(writer, "    "+src, fmt.Sprintf("$%06X", i))
 		//_, err := fmt.Fprintf(writer, "  %-10s ; $%06X\n", n.dasm[i].Value, i)
