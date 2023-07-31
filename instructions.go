@@ -2,6 +2,8 @@ package emu
 
 import (
 	"fmt"
+
+	"github.com/zorchenhimer/emu-6502/mmu"
 )
 
 type ExecFunc func(c *Core, address uint16)
@@ -9,12 +11,12 @@ type ExecFunc func(c *Core, address uint16)
 type Instruction interface {
 	Execute(c *Core)
 	Name() string
-	InstrLength() uint8
+	Length() uint8
 	AddressMeta() AddressModeMeta
-	Decode(c *Core) string
+	Decode(arg uint, mem mmu.Manager) string
 }
 
-var instructionList = map[byte]Instruction{
+var InstructionList = map[byte]Instruction{
 
 	OP_DEBUG: DebugInstruction{
 		OpCode:      OP_DEBUG,
@@ -824,11 +826,11 @@ func (di DebugInstruction) Execute(c *Core) {
 	c.PC += 1
 }
 
-func (di DebugInstruction) InstrLength() uint8 {
+func (di DebugInstruction) Length() uint8 {
 	return 1
 }
 
-func (di DebugInstruction) Decode(c *Core) string {
+func (di DebugInstruction) Decode(arg uint, mem mmu.Manager) string {
 	return "DBG"
 }
 
@@ -853,7 +855,7 @@ func (i StandardInstruction) Execute(c *Core) {
 	c.PC += uint16(size)
 }
 
-func (i StandardInstruction) InstrLength() uint8 {
+func (i StandardInstruction) Length() uint8 {
 	return uint8(i.AddressMode.Size())
 }
 
@@ -861,8 +863,8 @@ func (i StandardInstruction) Name() string {
 	return i.Instruction
 }
 
-func (i StandardInstruction) Decode(c *Core) string {
-	return i.Name() + i.AddressMode.Decode(c)
+func (i StandardInstruction) Decode(arg uint, mem mmu.Manager) string {
+	return i.Name() + i.AddressMode.Decode(arg, mem)
 }
 
 func instr_CLC(c *Core, address uint16) {
@@ -1071,11 +1073,11 @@ func (a Accumulator) Execute(c *Core) {
 	c.PC += 1
 }
 
-func (a Accumulator) InstrLength() uint8 {
+func (a Accumulator) Length() uint8 {
 	return 1
 }
 
-func (i Accumulator) Decode(c *Core) string {
+func (i Accumulator) Decode(arg uint, mem mmu.Manager) string {
 	return i.Name()+" A"
 }
 
@@ -1100,12 +1102,12 @@ func (rmw ReadModifyWrite) Name() string {
 	return rmw.Instruction
 }
 
-func (rmw ReadModifyWrite) InstrLength() uint8 {
+func (rmw ReadModifyWrite) Length() uint8 {
 	return uint8(rmw.AddressMode.Size())
 }
 
-func (i ReadModifyWrite) Decode(c *Core) string {
-	return i.Name() + i.AddressMode.Decode(c)
+func (i ReadModifyWrite) Decode(arg uint, mem mmu.Manager) string {
+	return i.Name() + i.AddressMode.Decode(arg, mem)
 }
 
 func instr_DEC(c *Core, value uint8) uint8 {
@@ -1163,25 +1165,33 @@ func (b Branch) Execute(c *Core) {
 		v = b.Flag
 	}
 
+	reladdr := c.addrRelative(c.PC, c.ReadByte(c.PC+1))
+
 	if (c.Phlags & b.Flag) == v {
-		c.PC = c.addrRelative(c.PC, c.ReadByte(c.PC+1))
 		if c.Disassemble {
+			fmt.Printf("[$%04X] new branch (taken): $%04X\n", c.PC, c.PC+2)
 			c.dasmTrees = append(c.dasmTrees, c.PC+2)
 		}
+		c.PC = reladdr
 	} else {
-		c.PC += 2
 		if c.Disassemble {
-			c.dasmTrees = append(c.dasmTrees, c.addrRelative(c.PC, c.ReadByte(c.PC+1)))
+			fmt.Printf("[$%04X] new branch (fallthrough): $%04X\n", c.PC, reladdr)
+			c.dasmTrees = append(c.dasmTrees, reladdr)
 		}
+		c.PC += 2
+	}
+
+	if c.Disassemble {
+		c.memory.AddAutoLabel(reladdr)
 	}
 }
 
-func (b Branch) InstrLength() uint8 {
+func (b Branch) Length() uint8 {
 	return 2
 }
 
-func (i Branch) Decode(c *Core) string {
-	return i.Name() + i.AddressMeta().Decode(c)
+func (i Branch) Decode(arg uint, mem mmu.Manager) string {
+	return i.Name() + i.AddressMeta().Decode(arg, mem)
 }
 
 // anything that modifies the PC directly, aside form branches
@@ -1201,7 +1211,7 @@ func (j Jump) Execute(c *Core) {
 	c.PC = j.Exec(c, address)
 }
 
-func (j Jump) InstrLength() uint8 {
+func (j Jump) Length() uint8 {
 	return uint8(j.AddressMode.Size())
 }
 
@@ -1209,15 +1219,24 @@ func (j Jump) AddressMeta() AddressModeMeta {
 	return j.AddressMode
 }
 
-func (i Jump) Decode(c *Core) string {
-	return i.Name() + i.AddressMode.Decode(c)
+func (i Jump) Decode(arg uint, mem mmu.Manager) string {
+	return i.Name() + i.AddressMode.Decode(arg, mem)
 }
 
 func instr_JMP(c *Core, address uint16) uint16 {
+	//fmt.Printf("c.Disassemble:%t\n", c.Disassemble)
+	if c.Disassemble {
+		fmt.Printf("[instr_JMP] %04X\n", address)
+		c.memory.AddAutoLabel(address)
+	}
 	return address
 }
 
 func instr_JSR(c *Core, address uint16) uint16 {
+	if c.Disassemble {
+		c.memory.AddAutoLabel(address)
+	}
+
 	c.routineDepth += 1
 	c.pushAddress(c.PC + 2)
 	return address

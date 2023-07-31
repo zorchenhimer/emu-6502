@@ -58,6 +58,7 @@ type Core struct {
 
 	// just the address for now.  probably needs the whole state of the core or something, idk.
 	dasmTrees []uint16
+	dasmVisited map[uint]any
 
 	history    [HistoryLength]string
 	historyIdx int
@@ -183,6 +184,10 @@ func (c *Core) RunRoutine(address uint16) error {
 		c.Debug = true
 	}
 
+
+	c.history = [HistoryLength]string{}
+
+	c.stop = false
 	if c.Disassemble {
 		fmt.Printf("RunRoutine($%04X)\n", address)
 	}
@@ -205,10 +210,18 @@ func (c *Core) RunRoutine(address uint16) error {
 
 // Just walk through code, i guess?  haphazardly execute shit?
 func (c *Core) StaticDisassembly() error {
+	c.dasmVisited = make(map[uint]any)
+
 	fmt.Println("len(c.dasmTrees):", len(c.dasmTrees))
 	for idx := 0; idx < len(c.dasmTrees); idx++ {
-		fmt.Printf("$%04X\n", c.dasmTrees[idx])
-		c.InstructionLimit = 1000
+		if _, found := c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])]; found {
+			continue
+		}
+
+		c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])] = nil
+
+		//fmt.Printf("$%04X\n", c.dasmTrees[idx])
+		c.InstructionLimit = 10000
 		err := c.RunRoutine(c.dasmTrees[idx])
 		if err != nil {
 			return err
@@ -315,7 +328,7 @@ func (c *Core) tick() error {
 		return nil // 0xFF means end of test
 	}
 
-	instr, ok := instructionList[opcode]
+	instr, ok := InstructionList[opcode]
 	if !ok || instr == nil {
 		c.DumpHistory()
 		return fmt.Errorf("OP Code not implemented: [$%04X] $%02X", c.PC, opcode)
@@ -323,7 +336,30 @@ func (c *Core) tick() error {
 
 	if c.Disassemble {
 		//fmt.Printf("$%04X: %s\n", c.PC, instr.Decode(c))
-		c.memory.AddDasm(c.PC, instr.Decode(c), uint(instr.AddressMeta().Size()))
+		//c.memory.AddDasm(c.PC, instr.Decode(c), uint(instr.AddressMeta().Size()))
+		l := uint16(instr.Length())
+		r := []byte{}
+		for i := uint16(0); i < l; i++ {
+			r = append(r, c.ReadByte(c.PC+i))
+		}
+
+		arg := uint(0)
+		switch instr.(type) {
+		case Branch:
+			arg = uint(c.memory.Offset(c.addrRelative(c.PC, c.ReadByte(c.PC+1))))
+
+		case Jump:
+			arg = uint(c.memory.Offset(c.ReadWord(c.PC+1)))
+
+		case StandardInstruction, ReadModifyWrite:
+			arg = uint(c.ReadByte(c.PC+1))
+		}
+
+		c.memory.AddDasm(
+			c.PC,
+			instr,
+			arg,
+		)
 	}
 
 	oppc := c.PC
@@ -348,7 +384,7 @@ func (c *Core) tick() error {
 }
 
 func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
-	l := instr.InstrLength()
+	l := instr.Length()
 	ops := []string{}
 	for i := uint8(0); i < l; i++ {
 		ops = append(ops, fmt.Sprintf("%02X", c.ReadByte(oppc+uint16(i))))
@@ -367,7 +403,7 @@ func (c *Core) HistoryString(oppc uint16, instr Instruction) string {
 
 func (c *Core) Instructions() []string {
 	ret := []string{}
-	for _, instr := range instructionList {
+	for _, instr := range InstructionList {
 		var op byte
 		switch instr.(type) {
 		case StandardInstruction:

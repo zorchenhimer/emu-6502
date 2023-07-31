@@ -7,13 +7,15 @@ import (
 
 	"github.com/zorchenhimer/emu-6502/labels"
 	"github.com/zorchenhimer/emu-6502/mappers"
-	//dis "github.com/zorchenhimer/emu-6502/disassembly"
 	//"github.com/zorchenhimer/go-nes/mesen"
 )
 
 type Disassembly struct {
 	//OpCode byte
 	Value string
+	//Raw []byte
+	Instr Instruction
+	Argument uint
 	Size uint
 	Address uint // address in bank space, not CPU space
 }
@@ -25,19 +27,35 @@ type NES struct {
 
 	dasmRom map[uint]string
 	dasmRam map[uint]string
+	ppu2ktoggle bool
 
 	dasm []*Disassembly
+	dasmVisited map[uint]any
 }
 
 func NewNES(mapper mappers.Mapper) *NES {
-	return &NES{
+	n := &NES{
 		mapper: mapper,
 		ram: [0x0800]byte{},
 
 		dasmRom: make(map[uint]string),
 		dasmRam: make(map[uint]string),
 		dasm: make([]*Disassembly, mapper.Info().PrgSize),
+		labels: make(map[labels.MemoryType]labels.LabelMap),
+		dasmVisited: make(map[uint]any),
 	}
+
+	n.labels[labels.NesPrgRom] = make(labels.LabelMap)
+
+	return n
+}
+
+func (n *NES) Visited(address uint16) bool {
+	return false
+}
+
+func (n *NES) Offset(address uint16) uint {
+	return uint(n.mapper.Offset(address))
 }
 
 func (n *NES) ReadByte(address uint16) uint8 {
@@ -45,6 +63,13 @@ func (n *NES) ReadByte(address uint16) uint8 {
 		return n.ram[address % 0x0800]
 	} else if address >= 0x4020 { // $4020 is the start of cart space
 		return n.mapper.ReadByte(address)
+	} else if address == 0x2002 {
+		n.ppu2ktoggle = !n.ppu2ktoggle
+		if n.ppu2ktoggle {
+			return 0x80
+		} else {
+			return 0x00
+		}
 	}
 
 	return 0
@@ -74,14 +99,15 @@ func (n *NES) GetZpLabel(address uint8) string {
 	return fmt.Sprintf("$%02X", address)
 }
 
-func (n *NES) GetLabel(address uint16) string {
-	lbl := n.lookupLabel(address)
-	if lbl != "" {
-		return lbl
+// rom address space
+func (n *NES) GetLabel(address uint) string {
+	if lbl, ok := n.labels[labels.NesPrgRom][address]; ok {
+		return lbl.Name
 	}
 	return fmt.Sprintf("$%04X", address)
 }
 
+// TODO: this needs to be in rom space, not CPU space
 func (n *NES) lookupLabel(address uint16) string {
 	switch n.MemoryType(address) {
 	case labels.NesInternalRam:
@@ -113,36 +139,39 @@ func (n *NES) LoadLabelsMesen2(filename string) error {
 	return err
 }
 
-func (n *NES) AddDasm(address uint16, src string, size uint) {
+func (n *NES) AddAutoLabel(address uint16) {
+	if address < n.mapper.Info().PrgStartAddress {
+		return
+	}
+
+	offset := n.mapper.Offset(address)
+	lbl := n.labels[labels.NesPrgRom].GetLabel(uint(offset))
+	if lbl != "" {
+		return
+	}
+
+	n.labels[labels.NesPrgRom][uint(offset)] = &labels.Label{
+		Name: fmt.Sprintf("L%06X", offset), Size: 1}
+}
+
+//func (n *NES) AddDasm(address uint16, src string, size uint) {
+// CPU address, OP code, Arument, Instruction size
+func (n *NES) AddDasm(address uint16, instr Instruction, arg uint) {
 	offset := uint(n.mapper.Offset(address))
 	if n.MemoryType(address) != labels.NesPrgRom {
 		return
 	}
 
-	instr := &Disassembly{
-		Value: src,
+	d := &Disassembly{
+		//Value: src,
+		Instr: instr,
+		Argument: arg,
 		Address: offset,
-		Size: size,
 	}
 
-	for i := uint(0); i < size; i++ {
-		n.dasm[i+offset] = instr
+	for i := uint(0); i < uint(d.Instr.Length()); i++ {
+		n.dasm[i+offset] = d
 	}
-
-	//n.dasm.Add(&dis.Instruction{
-	//	Address: offset,
-	//	Value: src,
-	//	Size: size,
-	//})
-
-	//switch n.MemoryType(address) {
-	//case NesWorkRam:
-	//	n.dasmRam[offset] = src
-	//case NesPrgRom:
-	//	n.dasmRom[offset] = src
-	//default:
-	//	// do nothing for now
-	//}
 }
 
 func (n *NES) MemoryType(address uint16) labels.MemoryType {
@@ -158,6 +187,7 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 	nothing := 0
 	start := uint(0)
 	for i := uint(0); i < uint(len(n.dasm)); i++ {
+		// keep track of how long we haven't found anything
 		if n.dasm[i] == nil {
 			if nothing == 0 {
 				start = i
@@ -167,12 +197,7 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 		}
 
 		if nothing != 0 {
-			//err := n.writeline(writer, "", fmt.Sprintf("$%06X: unknown for %d bytes", start, nothing))
-			////_, err := fmt.Fprintf(writer, "; $%06X: unknown for %d bytes\n", start, nothing)
-			//if err != nil {
-			//	return err
-			//}
-
+			// Write out raw bytes now that we found something.
 			for j := start; j < i; j++ {
 				err := n.writeline(writer, fmt.Sprintf("    .byte $%02X", n.mapper.RomRead(j)), fmt.Sprintf("$%06X", j))
 				//_, err := fmt.Fprintf(writer, "    .byte $%02X ; $%06X \n", n.mapper.RomRead(j), j)
@@ -184,13 +209,17 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 			nothing = 0
 		}
 
+		// Code label
 		if lbl, ok := n.labels[labels.NesPrgRom][i]; ok {
+			// write comment if there is one
 			if lbl.Comment != "" {
 				err := n.writeline(writer, "", fmt.Sprintf("$%06X: %s", i, lbl.Comment))
 				if err != nil {
 					return err
 				}
 			}
+
+			// write name if there is one (unlabeled comments are valid)
 			if lbl.Name != "" {
 				//_, err := fmt.Fprintf(writer, "%s: ; $%06X\n", lbl.Name, i)
 				err := n.writeline(writer, lbl.Name+":", fmt.Sprintf("$%06X", i))
@@ -200,14 +229,22 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 			}
 		}
 
-		err := n.writeline(writer, "    "+n.dasm[i].Value, fmt.Sprintf("$%06X", i))
+		// label for the instruction's arugment
+		//l, ok := n.labels[labels.NesPrgRom][n.dasm[i].Address]
+		//if !ok {
+		//	l = fmt.Sprintf("$%04d", n.dasm[i].Address)
+		//}
+
+		// TODO: left off with this.  it's not implemented. (defref the labels here, not when we run the op code in core)
+		src := n.dasm[i].Instr.Decode(n.dasm[i].Argument, n)
+		err := n.writeline(writer, "    "+src, fmt.Sprintf("$%06X", i))
 		//_, err := fmt.Fprintf(writer, "  %-10s ; $%06X\n", n.dasm[i].Value, i)
 		if err != nil {
 			return err
 		}
 
-		if n.dasm[i].Size > 1 {
-			i = i+n.dasm[i].Size-1
+		if n.dasm[i].Instr.Length() > 1 {
+			i = i+uint(n.dasm[i].Instr.Length())-1
 		}
 	}
 

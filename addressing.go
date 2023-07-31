@@ -2,6 +2,8 @@ package emu
 
 import (
 	"fmt"
+
+	"github.com/zorchenhimer/emu-6502/mmu"
 )
 
 type AddressModeMeta struct {
@@ -9,7 +11,8 @@ type AddressModeMeta struct {
 	Asm      func(c *Core, oppc uint16) string
 	Address  func(c *Core) (uint16, uint8)
 	Size     func() int
-	Decode   func(c *Core) string
+	//Decode   func(c *Core) string
+	Decode   func(arg uint, mem mmu.Manager) string
 }
 
 var ADDR_Accumulator = AddressModeMeta{
@@ -21,7 +24,7 @@ var ADDR_Accumulator = AddressModeMeta{
 		return c.PC, 1
 	},
 	Size: func() int { return 1 },
-	Decode: func(c *Core) string {
+	Decode: func(arg uint, mem mmu.Manager) string {
 		return " A"
 	},
 }
@@ -35,8 +38,12 @@ var ADDR_Absolute = AddressModeMeta{
 		return c.ReadWord(c.PC + 1), 3
 	},
 	Size: func() int { return 3 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%04X", arg)
+		}
+		return " "+label
 	},
 }
 
@@ -53,8 +60,12 @@ var ADDR_AbsoluteX = AddressModeMeta{
 		return c.ReadWord(c.PC+1) + uint16(c.X), 3
 	},
 	Size: func() int { return 3 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))+", X"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%04X", arg)
+		}
+		return " "+label+", X"
 	},
 }
 
@@ -71,8 +82,12 @@ var ADDR_AbsoluteY = AddressModeMeta{
 		return c.ReadWord(c.PC+1) + uint16(c.Y), 3
 	},
 	Size: func() int { return 3 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetLabel(c.ReadWord(c.PC+1))+", Y"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%04X", arg)
+		}
+		return " "+label+", Y"
 	},
 }
 
@@ -85,8 +100,8 @@ var ADDR_Immediate = AddressModeMeta{
 		return c.PC + 1, 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return fmt.Sprintf(" #$%02X", c.ReadByte(c.PC+1))
+	Decode: func(arg uint, mem mmu.Manager) string {
+		return fmt.Sprintf(" #$%02X", arg)
 	},
 }
 
@@ -99,7 +114,7 @@ var ADDR_Implied = AddressModeMeta{
 		return c.PC, 1
 	},
 	Size: func() int { return 1 },
-	Decode: func(c *Core) string {
+	Decode: func(arg uint, mem mmu.Manager) string {
 		return ""
 	},
 }
@@ -117,8 +132,12 @@ var ADDR_Indirect = AddressModeMeta{
 		return c.ReadWord(c.ReadWord(c.PC + 1)), 3
 	},
 	Size: func() int { return 3 },
-	Decode: func(c *Core) string {
-		return " ("+c.memory.GetLabel(c.ReadWord(c.PC+1))+")"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%04X", arg)
+		}
+		return " ("+label+")"
 	},
 }
 
@@ -135,8 +154,12 @@ var ADDR_IndirectX = AddressModeMeta{
 		return c.ReadWord(uint16(c.ReadByte(c.PC+1) + c.X)), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " ("+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", X)"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%02X", arg)
+		}
+		return " ("+label+", X)"
 	},
 }
 
@@ -153,8 +176,12 @@ var ADDR_IndirectY = AddressModeMeta{
 		return c.ReadWord(uint16(c.ReadByte(uint16(c.PC+1)))) + uint16(c.Y), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " ("+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+"), Y"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%02X", arg)
+		}
+		return " ("+label+"), Y"
 	},
 }
 
@@ -168,8 +195,12 @@ var ADDR_ZeroPage = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC + 1)), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetZpLabel(uint8(arg))
+		if label == "" {
+			label = fmt.Sprintf("$%02X", arg)
+		}
+		return " "+label
 	},
 }
 
@@ -186,8 +217,12 @@ var ADDR_ZeroPageX = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC+1) + c.X), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", X"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetZpLabel(uint8(arg))
+		if label == "" {
+			label = fmt.Sprintf("$%02X", arg)
+		}
+		return " "+label+", X"
 	},
 }
 
@@ -204,8 +239,12 @@ var ADDR_ZeroPageY = AddressModeMeta{
 		return uint16(c.ReadByte(c.PC+1) + c.Y), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetZpLabel(c.ReadByte(c.PC+1))+", Y"
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetZpLabel(uint8(arg))
+		if label == "" {
+			label = fmt.Sprintf("$%02X", arg)
+		}
+		return " "+label+", Y"
 	},
 }
 
@@ -225,7 +264,11 @@ var ADDR_Relative = AddressModeMeta{
 		return c.addrRelative(c.PC, c.ReadByte(c.PC+1)), 2
 	},
 	Size: func() int { return 2 },
-	Decode: func(c *Core) string {
-		return " "+c.memory.GetLabel(c.addrRelative(c.PC, c.ReadByte(c.PC+1)))
+	Decode: func(arg uint, mem mmu.Manager) string {
+		label := mem.GetLabel(arg)
+		if label == "" {
+			label = fmt.Sprintf("$%04X", arg)
+		}
+		return " "+label
 	},
 }
