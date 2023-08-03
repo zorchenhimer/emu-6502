@@ -5,7 +5,7 @@ import (
 	//"bytes"
 	"fmt"
 	//"os"
-	"strings"
+	//"strings"
 	//"encoding/binary"
 
 	sbox "github.com/zorchenhimer/go-nes/studybox"
@@ -24,7 +24,7 @@ func init() {
 
 type StudyBox struct {
 	rom []byte
-	mainRam [0x0800]byte
+	//mainRam [0x0800]byte
 	ramA [0x4000]byte
 	ramB [0x8000]byte
 	RamABank uint8
@@ -81,7 +81,8 @@ func (sb *StudyBox) read4200() uint8 {
 // Tape drive status stuff
 func (sb *StudyBox) read4201() uint8 {
 	// TODO
-	return 0
+	return 0xFF
+	//return 0
 }
 
 // Set RAM bank
@@ -134,10 +135,7 @@ func (sb *StudyBox) ReadByte(address uint16) uint8 {
 		return reg()
 	}
 
-	if address < 0x2000 {
-		return sb.mainRam[address % 0x0800]
-
-	} else if address < 0x4200 {
+	if address < 0x4200 {
 		return 0
 
 	} else if address >= 0x4400 && address <= 0x4FFF {
@@ -150,7 +148,7 @@ func (sb *StudyBox) ReadByte(address uint16) uint8 {
 
 	} else if address >= 0x6000 && address <= 0x7FFF {
 		// Switched RAM B (32k)
-		return sb.ramA[address % 0x2000 + (uint16(sb.RamBBank) * 0x2000)]
+		return sb.ramB[address % 0x2000 + (uint16(sb.RamBBank) * 0x2000)]
 
 	} else if address >= 0x8000 && address < 0xC000 {
 		// Switched ROM (256k)
@@ -175,10 +173,7 @@ func (sb *StudyBox) WriteByte(address uint16, value uint8) {
 		return
 	}
 
-	if address < 0x2000 {
-		sb.mainRam[address % 0x0800] = value
-
-	} else if address >= 0x4400 && address <= 0x4FFF {
+	if address >= 0x4400 && address <= 0x4FFF {
 		// fixed RAM A
 		sb.ramA[address % 0x1000] = value
 
@@ -188,20 +183,7 @@ func (sb *StudyBox) WriteByte(address uint16, value uint8) {
 
 	} else if address >= 0x6000 && address <= 0x7FFF {
 		// Switched RAM B (32k)
-		sb.ramA[address % 0x2000 + (uint16(sb.RamBBank) * 0x2000)] = value
-
-	//} else if address >= 0x8000 && address < 0xC000 {
-	//	// Switched ROM (256k)
-	//	sb.rom[(address % 0x4000) + (uint16(sb.PrgBank) * 0x4000)] = value
-
-	//} else if address >= 0xC000 {
-	//	// Fixed ROM bank 0
-	//	sb.rom[address % 0x4000] = value
-
-	} else {
-		//panic(fmt.Sprintf("Read from address that isn't mapped to anything: %04X", address))
-		// between 0x4203 and 0x4400, exclusively
-		// do nothing
+		sb.ramB[address % 0x2000 + (uint16(sb.RamBBank) * 0x2000)] = value
 	}
 }
 
@@ -210,7 +192,12 @@ func (sb *StudyBox) ReadWord(address uint16) uint16 {
 }
 
 func (sb *StudyBox) Offset(address uint16) uint32 {
-	panic("Offset not implemented yet")
+	if address >= 0x8000 && address < 0xC000 {
+		return uint32(address - 0x8000) + (0x4000 * uint32(sb.PrgBank))
+	} else if address >= 0xC000 {
+		return uint32(address - 0xC000)
+	}
+
 	return 0
 }
 
@@ -223,8 +210,17 @@ func (sb *StudyBox) SetState(data interface{}) error {
 }
 
 func (sb StudyBox) Info() Info {
-	panic("StudyBox.Info() not implemented yet")
-	return Info{}
+	return Info{
+		PrgSize: uint(len(sb.rom)),
+		PrgRamSize: uint(len(sb.ramA) + len(sb.ramB)),
+		PrgBankSize: 0x4000,
+		ChrSize: 0,
+		ChrRamSize: 0,
+		ChrBankSize: 0,
+
+		PrgStartAddress: 0x8000,
+		PrgRamStartAddress: 0x4400,
+	}
 }
 
 func (sb StudyBox) Name() string {
@@ -235,16 +231,16 @@ func (sb StudyBox) State() string {
 	return "State() not implemented for StudyBox mapper"
 }
 
-func (sb StudyBox) DumpFullStack() string {
-	st := []string{}
-	for i := 0; i < 256; i++ {
-		st = append(st, fmt.Sprintf("$%02X", sb.mainRam[0x100+i]))
-	}
-	return strings.Join(st, " ")
-}
+//func (sb StudyBox) DumpFullStack() string {
+//	st := []string{}
+//	for i := 0; i < 256; i++ {
+//		st = append(st, fmt.Sprintf("$%02X", sb.mainRam[0x100+i]))
+//	}
+//	return strings.Join(st, " ")
+//}
 
 func (sb *StudyBox) ClearRam() {
-	sb.mainRam = [0x0800]byte{}
+	//sb.mainRam = [0x0800]byte{}
 	sb.ramA = [0x4000]byte{}
 	sb.ramB = [0x8000]byte{}
 }
@@ -257,5 +253,6 @@ func (sb *StudyBox) MemoryType(address uint16) string {
 }
 
 func (sb *StudyBox) RomRead(offset uint) byte {
-	panic("RomRead() not implemented")
+	//panic("RomRead() not implemented")
+	return sb.rom[offset]
 }

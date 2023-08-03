@@ -91,7 +91,7 @@ func LoadFromFile(filename string) (Mapper, error) {
 func LoadFromBytes(raw []byte) (Mapper, error) {
 	// Handle studybox files
 	if bytes.Equal(raw[:4], []byte("STBX")) {
-		return NewStudyBox(raw, true)
+		return nil, fmt.Errorf("Attempting to load StudyBox tape as Firmware/ROM")
 	}
 
 	header, err := ines.ParseHeader(raw)
