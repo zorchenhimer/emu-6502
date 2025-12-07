@@ -6,13 +6,15 @@ import (
 	"fmt"
 )
 
+type BreakpointEvent int
+
 const (
-	READ uint8 = 1
-	WRITE uint8 = 2
-	EXECUTE uint8 = 4
+	READ    BreakpointEvent = 1
+	WRITE   BreakpointEvent = 2
+	EXECUTE BreakpointEvent = 4
 )
 
-func EventToString(event uint8) string {
+func (event BreakpointEvent) String() string {
 	types := []string{}
 	if event & READ != 0 {
 		types = append(types, "READ")
@@ -27,10 +29,25 @@ func EventToString(event uint8) string {
 	return strings.Join(types, "|")
 }
 
-type BreakpointCallback func(c *Core, eventType uint8, value uint8)
+func EventToString(event BreakpointEvent) string {
+	types := []string{}
+	if event & READ != 0 {
+		types = append(types, "READ")
+	}
+	if event & WRITE != 0 {
+		types = append(types, "WRITE")
+	}
+	if event & EXECUTE != 0 {
+		types = append(types, "EXECUTE")
+	}
+
+	return strings.Join(types, "|")
+}
+
+type BreakpointCallback func(c *Core, eventType BreakpointEvent, value uint8)
 
 type Breakpoint struct {
-	Type uint8
+	Type BreakpointEvent
 	Address uint16
 	Callback BreakpointCallback
 	Name string
@@ -55,8 +72,8 @@ func (b *Breakpoints) String() string {
 	return out.String()
 }
 
-func (b *Breakpoints) Register(t uint8, name string, address uint16, fn BreakpointCallback) {
-	fmt.Printf("Registering %s breakpoint at $%04X\n", EventToString(t), address)
+func (b *Breakpoints) Register(t BreakpointEvent, name string, address uint16, fn BreakpointCallback) {
+	fmt.Printf("Registering %s breakpoint at $%04X\n", t, address)
 	nbp := Breakpoint{
 		Type: t,
 		Address: address,
@@ -109,7 +126,7 @@ func (b *Breakpoints) Execute(c *Core, address uint16, value uint8) {
 	b.runBreakpoints(c, EXECUTE, address, value)
 }
 
-func (b *Breakpoints) runBreakpoints(c *Core, t uint8, address uint16, value uint8) {
+func (b *Breakpoints) runBreakpoints(c *Core, t BreakpointEvent, address uint16, value uint8) {
 	bplst, ok := b.registered[address]
 	if !ok {
 		return

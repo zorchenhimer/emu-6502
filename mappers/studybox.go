@@ -31,6 +31,9 @@ type StudyBox struct {
 	RamBBank uint8
 	PrgBank uint8
 
+	// Record everything?
+	DebugTrace bool
+
 	irqEnabled bool
 	tapePages [][]byte
 	currentPage int
@@ -255,4 +258,41 @@ func (sb *StudyBox) MemoryType(address uint16) string {
 func (sb *StudyBox) RomRead(offset uint) byte {
 	//panic("RomRead() not implemented")
 	return sb.rom[offset]
+}
+
+type SbxEventType int
+
+const (
+	SbxEvent_Read SbxEventType = iota + 1
+	SbxEvent_Write
+	SbxEvent_Bank
+	SbxEvent_Tape
+)
+
+type SbxEvent struct {
+	Type SbxEventType
+}
+
+type SbxEventRW struct {
+	SbxEvent
+
+	Address uint16
+	Value   uint8
+}
+
+type SbxEventBank struct {
+	SbxEvent
+
+	// Base address in CPU space the bank is mapped to
+	// ie, 4400, 5000, 6000, 7000, 8000, C000
+	BankLocation uint16
+
+	OldValue uint8
+	NewValue uint8
+}
+
+type SbxEventTape struct {
+	SbxEvent
+
+	Value uint8
 }

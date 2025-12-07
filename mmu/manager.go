@@ -29,6 +29,11 @@ type Manager interface {
 	// Return all known labels for the given memory type
 	Labels(t labels.MemoryType) labels.LabelMap
 
+	// Check if this address has been visited
+	Visited(address uint16) bool
+	// Mark an address as visited
+	Visit(address uint16)
+
 	AddDasm(address uint16, instruction Instruction, arg uint)
 	//UpdateDasm(address uint16, instr 
 	WriteDasm(writer io.Writer) error

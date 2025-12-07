@@ -58,7 +58,7 @@ type Core struct {
 
 	// just the address for now.  probably needs the whole state of the core or something, idk.
 	dasmTrees []uint16
-	dasmVisited map[uint]any
+	//dasmVisited map[uint]any
 
 	history    [HistoryLength]string
 	historyIdx int
@@ -209,27 +209,28 @@ func (c *Core) RunRoutine(address uint16) error {
 }
 
 // Just walk through code, i guess?  haphazardly execute shit?
-func (c *Core) StaticDisassembly() error {
-	c.dasmVisited = make(map[uint]any)
-
-	fmt.Println("len(c.dasmTrees):", len(c.dasmTrees))
-	for idx := 0; idx < len(c.dasmTrees); idx++ {
-		if _, found := c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])]; found {
-			continue
-		}
-
-		c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])] = nil
-
-		//fmt.Printf("$%04X\n", c.dasmTrees[idx])
-		c.InstructionLimit = 10000
-		err := c.RunRoutine(c.dasmTrees[idx])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+// TODO: rework this entirely.  mmu.Visited() and mmu.Visit() have been written.
+//func (c *Core) StaticDisassembly() error {
+//	//c.dasmVisited = make(map[uint]any)
+//
+//	fmt.Println("len(c.dasmTrees):", len(c.dasmTrees))
+//	for idx := 0; idx < len(c.dasmTrees); idx++ {
+//		if _, found := c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])]; found {
+//			continue
+//		}
+//
+//		c.dasmVisited[c.memory.Offset(c.dasmTrees[idx])] = nil
+//
+//		//fmt.Printf("$%04X\n", c.dasmTrees[idx])
+//		c.InstructionLimit = 10000
+//		err := c.RunRoutine(c.dasmTrees[idx])
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	return nil
+//}
 
 func (c *Core) DumpHistory() {
 	if !c.Debug {

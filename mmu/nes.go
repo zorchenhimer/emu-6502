@@ -30,7 +30,7 @@ type NES struct {
 	ppu2ktoggle bool
 
 	dasm []*Disassembly
-	dasmVisited map[uint]any
+	dasmVisited map[uint]map[uint16]any // list of CPU addresses
 }
 
 func NewNES(mapper mappers.Mapper) *NES {
@@ -42,7 +42,7 @@ func NewNES(mapper mappers.Mapper) *NES {
 		dasmRam: make(map[uint]string),
 		dasm: make([]*Disassembly, mapper.Info().PrgSize),
 		labels: make(map[labels.MemoryType]labels.LabelMap),
-		dasmVisited: make(map[uint]any),
+		dasmVisited: make(map[uint]map[uint16]any),
 	}
 
 	n.labels[labels.NesPrgRom] = make(labels.LabelMap)
@@ -51,7 +51,17 @@ func NewNES(mapper mappers.Mapper) *NES {
 }
 
 func (n *NES) Visited(address uint16) bool {
-	return false
+	_, visited := n.dasmVisited[n.Offset(address)]
+	return visited
+}
+
+// Mark and address as visited and record the CPU address it was mapped to
+func (n *NES) Visit(address uint16) {
+	offset := n.Offset(address)
+	if _, ok := n.dasmVisited[offset]; !ok {
+		n.dasmVisited[offset] = make(map[uint16]any)
+	}
+	n.dasmVisited[offset][address] = nil
 }
 
 func (n *NES) Offset(address uint16) uint {
@@ -155,7 +165,7 @@ func (n *NES) AddAutoLabel(address uint16) {
 }
 
 //func (n *NES) AddDasm(address uint16, src string, size uint) {
-// CPU address, OP code, Arument, Instruction size
+// CPU address, instruction, arugement (which is sometimes an address)
 func (n *NES) AddDasm(address uint16, instr Instruction, arg uint) {
 	offset := uint(n.mapper.Offset(address))
 	if n.MemoryType(address) != labels.NesPrgRom {
@@ -200,7 +210,6 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 			// Write out raw bytes now that we found something.
 			for j := start; j < i; j++ {
 				err := n.writeline(writer, fmt.Sprintf("    .byte $%02X", n.mapper.RomRead(j)), fmt.Sprintf("$%06X", j))
-				//_, err := fmt.Fprintf(writer, "    .byte $%02X ; $%06X \n", n.mapper.RomRead(j), j)
 				if err != nil {
 					return err
 				}
@@ -221,7 +230,6 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 
 			// write name if there is one (unlabeled comments are valid)
 			if lbl.Name != "" {
-				//_, err := fmt.Fprintf(writer, "%s: ; $%06X\n", lbl.Name, i)
 				err := n.writeline(writer, lbl.Name+":", fmt.Sprintf("$%06X", i))
 				if err != nil {
 					return err
@@ -229,15 +237,8 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 			}
 		}
 
-		// label for the instruction's arugment
-		//l, ok := n.labels[labels.NesPrgRom][n.dasm[i].Address]
-		//if !ok {
-		//	l = fmt.Sprintf("$%04d", n.dasm[i].Address)
-		//}
-
 		src := n.dasm[i].Instr.Decode(n.dasm[i].Argument, n)
 		err := n.writeline(writer, "    "+src, fmt.Sprintf("$%06X", i))
-		//_, err := fmt.Fprintf(writer, "  %-10s ; $%06X\n", n.dasm[i].Value, i)
 		if err != nil {
 			return err
 		}
@@ -248,7 +249,6 @@ func (n *NES) WriteDasm(writer io.Writer) error {
 	}
 
 	return nil
-	//return n.dasm.Write(writer)
 }
 
 func (n *NES) writeline(w io.Writer, src, comment string) error {
