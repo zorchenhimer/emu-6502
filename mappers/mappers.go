@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/zorchenhimer/go-nes/ines"
+	"github.com/zorchenhimer/go-nes/rom"
 )
 
 type mapperNewFunc func(raw []byte, hasRam bool) (Mapper, error)
@@ -94,7 +94,7 @@ func LoadFromBytes(raw []byte) (Mapper, error) {
 		return nil, fmt.Errorf("Attempting to load StudyBox tape as Firmware/ROM")
 	}
 
-	header, err := ines.ParseHeader(raw)
+	header, err := rom.ParseHeader(raw)
 	if err != nil {
 		return nil, err
 	}
